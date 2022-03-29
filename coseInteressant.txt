@@ -1,0 +1,14 @@
+
+# LAB SULLO SLAB ALLOCATOR
+https://courses.cs.washington.edu/courses/csep551/19au/labs/alloc.html
+
+#IMPLEMENTAZIONE SLAB IN C IN USER SPACE
+#potremmo usare questo come base per scrivere il nostro in kernel space
+# /src/slab.c
+https://github.com/thibault-reigner/userland_slab
+
+# CODICE LINKED LIST PER SLAB
+https://gitlab.cs.washington.edu/csep551/xv6-19au/-/blob/xv6-19au/kernel/list.c
+
+
+
