@@ -1,42 +1,33 @@
 # xv6-riscv-rcu
+Authors: Nicolas Gallo, Salvo Maccarrone
+
 RCU implementation on xv6-riscv
 
-#how to destroy your personal computer
-#inside scripts dir
 
+## Build the container 
+
+```sh
+cd /scripts
 sudo make -f container.mk build
-
-# connect
-# How? black magic?
-
+```
+## Connect to the container
+```sh 
 sudo make -f container.mk connect
+#How? black magic?
+```
 
 
-#inside the container
-
+## compile kernel
+```sh
 cd /local && make TOOLPREFIX=/opt/riscv/toolchain/bin/riscv64-unknown-elf-
+```
 
 
+## Start Qemu
 
-#last command
-
+```sh
 cd /local && make TOOLPREFIX=/opt/riscv/toolchain/bin/riscv64-unknown-elf- qemu
+```
 
-#############
-
-
-
-#To run the last command, rename the file README.md to README, inside the local folder
-
-
-
-cd /local/xv6-riscv && mv README.md README
-
-#then run the command
-
-cd /local && make TOOLPREFIX=/opt/riscv/toolchain/bin/riscv64-unknown-elf- qemu
-
-
-#Exit from Qemu:
-
+### Exit from Qemu:
 Ctrl+A, x
