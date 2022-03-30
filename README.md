@@ -31,3 +31,13 @@ cd /local && make TOOLPREFIX=/opt/riscv/toolchain/bin/riscv64-unknown-elf- qemu
 
 ### Exit from Qemu:
 Ctrl+A, x
+
+## How to add a syscall
+1. Add entry in usys.pl 
+```pl
+entry("syscallname")
+```
+2. Define it in user.h
+3. Add its code number to syscall.h
+4. Add it to syscall.c, both the signature and the entry in the array
+5. Implement it in the appropriate file, e.g. sys_nfree() is implemented in kalloc.c
