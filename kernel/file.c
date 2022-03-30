@@ -75,6 +75,7 @@ fileclose(struct file *f)
   f->ref = 0;
   f->type = FD_NONE;
   kmem_cache_free(&ftable.cache, (void*)f)  ;
+
   release(&ftable.lock);
 
   if(ff.type == FD_PIPE){
