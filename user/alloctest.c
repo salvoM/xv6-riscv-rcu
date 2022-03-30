@@ -28,7 +28,8 @@ test0() {
     }
     if(pid == 0){
       for(j = 0; j < NFD; j++) {
-        if ((fd = open("README", O_RDONLY)) < 0) {
+        // printf("Opening README.md");
+        if ((fd = open("echo", O_RDONLY)) < 0) {
           // the open() failed; exit with -1
           printf("open failed\n");
           exit(-1);
@@ -70,7 +71,7 @@ void test1()
 
     n0 = nfree();
     for(i = 0; i < NFD; i++) {
-      if ((fd = open("README", O_RDONLY)) < 0) {
+      if ((fd = open("echo", O_RDONLY)) < 0) {
         // the open() failed; exit with -1
         printf("open failed\n");
         exit(-1);
