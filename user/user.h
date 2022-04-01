@@ -24,7 +24,10 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 int nfree();
+<<<<<<< HEAD
 
+=======
+>>>>>>> prova_distruzione
 
 // ulib.c
 int stat(const char*, struct stat*);

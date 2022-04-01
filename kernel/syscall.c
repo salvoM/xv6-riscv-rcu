@@ -105,7 +105,10 @@ extern uint64 sys_wait(void);
 extern uint64 sys_write(void);
 extern uint64 sys_uptime(void);
 extern uint64 sys_nfree(void);
+<<<<<<< HEAD
 
+=======
+>>>>>>> prova_distruzione
 
 static uint64 (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
