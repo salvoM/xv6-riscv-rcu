@@ -135,6 +135,7 @@ UPROGS=\
 	$U/_zombie\
 	$U/_alloctest\
 	$U/_testfile
+	$U/_usertests\
 
 fs.img: mkfs/mkfs $(UPROGS)
 	mkfs/mkfs fs.img $(UPROGS)
