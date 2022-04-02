@@ -10,7 +10,7 @@
 
 void
 test0() {
-  int i, j;
+  // int i, j;
   int fd;
   char string[SIZE];
   int res;
@@ -23,23 +23,23 @@ test0() {
     exit(-1);
   }
   else{
-
-    if(res = read( fd, string, SIZE-1) != 0){
-      string[SIZE-1] = "\0";
+    res = read( fd, string, SIZE-1);
+    if( res != 0){
+      string[SIZE-1] = 0;
       printf("%s", string);
       printf("Read %d bytes from %d\n", res, fd);
     }
     else{
       printf("Cannot read from %d", fd);
-      printf("[TEST] reading file descriptor: FAILED\n");
+      printf("[TEST] reading file descriptor: FAILED\n\n\n");
     }
   }
-  printf("[TEST] reading file descriptor: OK\n");
+  printf("[TEST] reading file descriptor: OK\n\n\n");
 }
 
 void test1()
 {
-  int pid, xstatus, n0, n;
+  // int pid, xstatus, n0, n;
   int fd;
   const char test_string[] = "This is a test string";
   char buffer[SIZE];
