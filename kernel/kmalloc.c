@@ -1,4 +1,9 @@
+#include "kernel/types.h"
+#include "kernel/riscv.h"
+#include "kernel/defs.h"
 #include "kernel/kmalloc.h"
+
+
 
 static Header base;
 static Header *freep;

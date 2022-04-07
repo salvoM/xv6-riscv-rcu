@@ -86,7 +86,7 @@ void test1()
 			close(fd);
 			fd = open(filename, O_RDONLY);
 			res = read(fd, buffer, sizeof(test_string));
-			printf("la stringa è %s", buffer);
+			// printf("la stringa è %s\n", buffer);
 			if (res == 0)
 			{
 				printf("[-] Read failed\n");
