@@ -40,7 +40,8 @@ filealloc(void)
   //     return f;
   //   }
   // }
-  f = (struct file *)kmem_cache_alloc(&ftable.cache);
+  // f = (struct file *)kmem_cache_alloc(&ftable.cache);
+  f = (struct file *) knmalloc(sizeof(struct file));
   release(&ftable.lock);
   return f;
 }
@@ -74,7 +75,9 @@ fileclose(struct file *f)
   ff = *f;
   f->ref = 0;
   f->type = FD_NONE;
-  kmem_cache_free(&ftable.cache, (void*)f)  ;
+  // kmem_cache_free(&ftable.cache, (void*)f);
+  printf("[LOG] fileclose called");
+  knfree((void*) f);
 
   release(&ftable.lock);
 

@@ -52,12 +52,12 @@ void test1()
 	*/
 	// int pid, xstatus, n0, n;
 	int fd, res = 0;
-	const char test_string[] = "This is a test string";
+	const char test_string[] = "I solemnly swear that I have no good intentions\n";
 	char buffer[SIZE];
-	const char filename[] = "dest_a";
+	const char filename[] = "temp1";
 	printf("[WRITE TEST] START\n");
 
-	if ((fd = open(filename, O_RDWR)) < 0)
+	if ((fd = open(filename, O_RDWR | O_CREATE)) < 0)
 	{
 		printf("[-] Open failed\n");
 		printf("[-] Cannot open %s\n", filename);
