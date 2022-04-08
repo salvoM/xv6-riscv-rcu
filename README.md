@@ -28,7 +28,8 @@ cd /local && make TOOLPREFIX=/opt/riscv/toolchain/bin/riscv64-unknown-elf-
 ```sh
 cd /local && make TOOLPREFIX=/opt/riscv/toolchain/bin/riscv64-unknown-elf- qemu
 ```
-
+###Enter monitor mode
+Ctrl+A, c
 ### Exit from Qemu:
 Ctrl+A, x
 
