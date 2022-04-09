@@ -18,6 +18,7 @@ struct devsw devsw[NDEV];
 struct {
   struct spinlock lock;
   struct kmem_cache cache;
+  struct file file[NFILE];
 } ftable;
 
 void
@@ -36,12 +37,13 @@ filealloc(void)
   // for(f = ftable.file; f < ftable.file + NFILE; f++){
   //   if(f->ref == 0){
   //     f->ref = 1;
-  //     release(&ftable.lock);
-  //     return f;
+  // //     release(&ftable.lock);
+  // //     return f;
   //   }
   // }
   // f = (struct file *)kmem_cache_alloc(&ftable.cache);
   f = (struct file *) knmalloc(sizeof(struct file));
+  f->ref = 1;
   release(&ftable.lock);
   return f;
 }
@@ -65,19 +67,24 @@ fileclose(struct file *f)
   struct file ff;
 
   acquire(&ftable.lock);
-  if(f->ref < 1)
-    panic("fileclose");
+  if(f->ref==1){
+    knfree((void*) f);
+    printf("[LOG] fileclose called \n");
+
+  }
+
+  // if(f->ref < 1)
+  //   panic("fileclose");
   if(--f->ref > 0){
     release(&ftable.lock);
     return;
   }
 
   ff = *f;
-  f->ref = 0;
+ // f->ref = 0;
   f->type = FD_NONE;
   // kmem_cache_free(&ftable.cache, (void*)f);
-  printf("[LOG] fileclose called");
-  knfree((void*) f);
+  // knfree((void*) f);
 
   release(&ftable.lock);
 
