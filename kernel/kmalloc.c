@@ -12,7 +12,7 @@ void
 knfree(void *ap)
 {
   Header *bp, *p;
-  printf("[LOG KNFREE] knfree(%p)\n", ap);
+  //printf("[LOG KNFREE] knfree(%p)\n", ap);
 
   bp = (Header*)ap - 1;
   for(p = freep; !(bp > p && bp < p->s.ptr); p = p->s.ptr)
@@ -40,7 +40,7 @@ knmorecore(uint nu)
   if(nu < 4096)
     nu = 4096;
   p = (char*)kalloc();
-  printf("[LOG KNMORECOREUNIT] kalloc returned %p\n", p);
+  //printf("[LOG KNMORECOREUNIT] kalloc returned %p\n", p);
   if(p == (char*)-1)
     return 0;
   hp = (Header*)p;
@@ -56,9 +56,9 @@ knmalloc(uint nbytes)
   uint nunits;
 
   nunits = (nbytes + sizeof(Header) - 1)/sizeof(Header) + 1;
-  printf("[LOG KNMALLOC] knmalloc(%d)\n", nbytes);
+  //printf("[LOG KNMALLOC] knmalloc(%d)\n", nbytes);
   // printf("[LOG KNMALLOC] sizeof(file) = %d\n", sizeof( a ));
-  printf("[LOG KNMALLOC] nunits = %d, sizeof(Header) = %d\n", nunits, sizeof(Header));
+  //printf("[LOG KNMALLOC] nunits = %d, sizeof(Header) = %d\n", nunits, sizeof(Header));
   if((prevp = freep) == 0){
     base.s.ptr = freep = prevp = &base;
     base.s.size = 0;
@@ -73,14 +73,14 @@ knmalloc(uint nbytes)
         p->s.size = nunits;
       }
       freep = prevp;
-      printf("[LOG KNMALLOC] return %p\n", (void*)(p+1));
+      //printf("[LOG KNMALLOC] return %p\n", (void*)(p+1));
       return (void*)(p + 1);
     }
     // printf("[LOG KNMALLOC] p = %p, freep = %p\n", p, freep);
     if(p == freep)
       if((p = knmorecore(nunits)) == 0)
       {
-        printf("[LOG KNMALLOC] return 0\n");
+        //printf("[LOG KNMALLOC] return 0\n");
         return 0;
       }
   }

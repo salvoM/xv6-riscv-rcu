@@ -139,7 +139,7 @@ kerneltrap()
   uint64 scause = r_scause();
   
   if((sstatus & SSTATUS_SPP) == 0)
-    panic("kerneltrap: not from supervisor mode");
+    panic(": not from supervisor mode");
   if(intr_get() != 0)
     panic("kerneltrap: interrupts enabled");
 

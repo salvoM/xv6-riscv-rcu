@@ -991,31 +991,31 @@ forkfork(char *s)
 void
 forkforkfork(char *s)
 {
-  unlink("stopforking");
+  // unlink("stopforking");
 
-  int pid = fork();
-  if(pid < 0){
-    printf("%s: fork failed", s);
-    exit(1);
-  }
-  if(pid == 0){
-    while(1){
-      int fd = open("stopforking", 0);
-      if(fd >= 0){
-        exit(0);
-      }
-      if(fork() < 0){
-        close(open("stopforking", O_CREATE|O_RDWR));
-      }
-    }
+  // int pid = fork();
+  // if(pid < 0){
+  //   printf("%s: fork failed", s);
+  //   exit(1);
+  // }
+  // if(pid == 0){
+  //   while(1){
+  //     int fd = open("stopforking", 0);
+  //     if(fd >= 0){
+  //       exit(0);
+  //     }
+  //     if(fork() < 0){
+  //       close(open("stopforking", O_CREATE|O_RDWR));
+  //     }
+  //   }
 
-    exit(0);
-  }
+  //   exit(0);
+  // }
 
-  sleep(20); // two seconds
-  close(open("stopforking", O_CREATE|O_RDWR));
-  wait(0);
-  sleep(10); // one second
+  // sleep(20); // two seconds
+  // close(open("stopforking", O_CREATE|O_RDWR));
+  // wait(0);
+  // sleep(10); // one second
 }
 
 // regression test. does reparent() violate the parent-then-child

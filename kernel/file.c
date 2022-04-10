@@ -69,7 +69,7 @@ fileclose(struct file *f)
   acquire(&ftable.lock);
   if(f->ref==1){
     knfree((void*) f);
-    printf("[LOG] fileclose called \n");
+    //printf("[LOG] fileclose called \n");
 
   }
 
