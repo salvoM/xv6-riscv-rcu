@@ -12,19 +12,25 @@
 #include "file.h"
 #include "stat.h"
 #include "proc.h"
-#include "slab.h"
+
 
 struct devsw devsw[NDEV];
 struct {
   struct spinlock lock;
-  struct kmem_cache cache;
   struct file file[NFILE];
 } ftable;
+
+struct list *current; //current pointer of the file list
 
 void
 fileinit(void)
 {
   initlock(&ftable.lock, "ftable");
+  printf("[LOG FILE] initializing the linked list\n");
+  current = (struct list *)knmalloc(sizeof(struct list));
+  lst_init(current);
+  printf("[LOG FILE] list initialized %d\n",current);
+
 }
 
 // Allocate a file structure.
@@ -43,6 +49,13 @@ filealloc(void)
   // }
   // f = (struct file *)kmem_cache_alloc(&ftable.cache);
   f = (struct file *) knmalloc(sizeof(struct file));
+
+  //adding the file on the linked list
+  printf("[LOG FILE] pushing the file %d netxt to %d\n",f->p,current);
+  lst_push(current,f->p);
+  printf("[LOG FILE] file %d pushed\n",f->p);
+
+  current=f->p;
   f->ref = 1;
   release(&ftable.lock);
   return f;
@@ -68,6 +81,14 @@ fileclose(struct file *f)
 
   acquire(&ftable.lock);
   if(f->ref==1){
+    if(current==f->p){
+      printf("[LOG FILE] removing last file %d from the linked list\n",f->p);
+      current=f->p->prev;
+    }
+    printf("[LOG FILE] removing file %d from the linked list\n",f->p);
+    lst_remove(f->p);
+    printf("[LOG FILE] file %d removed\n", f->p);
+
     knfree((void*) f);
     //printf("[LOG] fileclose called \n");
 

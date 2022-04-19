@@ -68,6 +68,21 @@ void            kinit(void);
 void knfree(void *ap);
 void* knmalloc(uint nbytes);
 
+// list
+struct list {
+  struct list *next;
+  struct list *prev;
+  struct file *file;
+};
+
+// list.c
+void lst_init(struct list*);
+void lst_remove(struct list*);
+void lst_push(struct list*, struct list*);
+void *lst_pop(struct list*);
+void lst_print(struct list*);
+int lst_empty(struct list*);
+
 // log.c
 void            initlog(int, struct superblock*);
 void            log_write(struct buf*);

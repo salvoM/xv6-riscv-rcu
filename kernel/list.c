@@ -9,9 +9,15 @@
 // fast. circular simplifies code, because don't have to check for
 // empty list in insert and remove.
 
+
+
 void
 lst_init(struct list *lst)
-{
+{ 
+  // printf("[LOG LIST] allocating mem for pointers \n");
+  // lst->next = (struct list *)knmalloc(sizeof(struct list));
+  // lst->prev = (struct list *)knmalloc(sizeof(struct list));
+
   lst->next = lst;
   lst->prev = lst;
 }
@@ -37,12 +43,17 @@ lst_pop(struct list *lst) {
 }
 
 void
-lst_push(struct list *lst, void *p)
+lst_push(struct list *lst, struct list *e)
 {
-  struct list *e = (struct list *) p;
+  // struct list *e = (struct list *) 
+  printf("[LOG LIST - PUSH] changing the list pointers %d %d\n",lst,e);
+  //e->next = (struct list *)knmalloc(sizeof(struct list));
   e->next = lst->next;
+  printf("[LOG LIST -PUSH] next pointer changed\n");
   e->prev = lst;
-  lst->next->prev = p;
+  printf("[LOG LIST - PUSH] prev pointer chnaged \n");
+
+  lst->next->prev = e;
   lst->next = e;
 }
 
