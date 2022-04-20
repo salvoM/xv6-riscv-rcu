@@ -21,6 +21,7 @@ struct {
 } ftable;
 
 struct list *tail; //tail of the list of files
+struct list *head; //head of the list of files
 
 void
 fileinit(void)
@@ -28,7 +29,9 @@ fileinit(void)
   initlock(&ftable.lock, "ftable");
   printf("[LOG FILE] initializing the linked list\n");
   tail = (struct list *)knmalloc(sizeof(struct list));
+  head = (struct list *)knmalloc(sizeof(struct list));
   lst_init(tail);
+  head = tail;
   printf("[LOG FILE] list initialized %d\n",tail);
 
 }
@@ -86,9 +89,9 @@ fileclose(struct file *f)
 
   acquire(&ftable.lock);
   if(f->ref==1){
-    if(tail==f->node){
+    if(head==f->node){
       printf("[LOG FILE] removing last file %d from the linked list\n",f->node);
-      tail=f->node->prev;
+      //tail=f->node->prev;
     }
     printf("[LOG FILE] removing file %d from the linked list\n",f->node);
     lst_remove(f->node);
