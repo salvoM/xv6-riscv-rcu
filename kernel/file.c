@@ -20,16 +20,16 @@ struct {
   struct file file[NFILE];
 } ftable;
 
-struct list *current; //current pointer of the file list
+struct list *tail; //tail of the list of files
 
 void
 fileinit(void)
 {
   initlock(&ftable.lock, "ftable");
   printf("[LOG FILE] initializing the linked list\n");
-  current = (struct list *)knmalloc(sizeof(struct list));
-  lst_init(current);
-  printf("[LOG FILE] list initialized %d\n",current);
+  tail = (struct list *)knmalloc(sizeof(struct list));
+  lst_init(tail);
+  printf("[LOG FILE] list initialized %d\n",tail);
 
 }
 
@@ -50,12 +50,17 @@ filealloc(void)
   // f = (struct file *)kmem_cache_alloc(&ftable.cache);
   f = (struct file *) knmalloc(sizeof(struct file));
 
-  //adding the file on the linked list
-  printf("[LOG FILE] pushing the file %d netxt to %d\n",f->p,current);
-  lst_push(current,f->p);
-  printf("[LOG FILE] file %d pushed\n",f->p);
+  printf("[LOG FILE] allocating memory of the file pointer on the linkedilist\n");
+  f->node = (struct list *)knmalloc(sizeof(struct list));
 
-  current=f->p;
+
+  //adding the file on the linked list
+  printf("[LOG FILE] pushing the file %d next %d\n",f->node,tail);
+
+  lst_push(tail,f->node);
+  printf("[LOG FILE] file %d pushed\n",f->node);
+
+  tail=f->node;
   f->ref = 1;
   release(&ftable.lock);
   return f;
@@ -81,14 +86,14 @@ fileclose(struct file *f)
 
   acquire(&ftable.lock);
   if(f->ref==1){
-    if(current==f->p){
-      printf("[LOG FILE] removing last file %d from the linked list\n",f->p);
-      current=f->p->prev;
+    if(tail==f->node){
+      printf("[LOG FILE] removing last file %d from the linked list\n",f->node);
+      tail=f->node->prev;
     }
-    printf("[LOG FILE] removing file %d from the linked list\n",f->p);
-    lst_remove(f->p);
-    printf("[LOG FILE] file %d removed\n", f->p);
-
+    printf("[LOG FILE] removing file %d from the linked list\n",f->node);
+    lst_remove(f->node);
+    printf("[LOG FILE] file %d removed\n", f->node);
+  
     knfree((void*) f);
     //printf("[LOG] fileclose called \n");
 

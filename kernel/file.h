@@ -8,7 +8,7 @@ struct file {
   uint off;          // FD_INODE
   short major;       // FD_DEVICE
   
-  struct list *p;    //pointer of the node of the file on the linked list
+  struct list *node;    //pointer of the node of the file on the linked list
 };
 
 #define major(dev)  ((dev) >> 16 & 0xFFFF)

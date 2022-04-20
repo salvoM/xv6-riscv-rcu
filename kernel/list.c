@@ -31,6 +31,7 @@ void
 lst_remove(struct list *e) {
   e->prev->next = e->next;
   e->next->prev = e->prev;
+  knfree((void*) e);
 }
 
 void*
@@ -45,9 +46,11 @@ lst_pop(struct list *lst) {
 void
 lst_push(struct list *lst, struct list *e)
 {
-  // struct list *e = (struct list *) 
-  printf("[LOG LIST - PUSH] changing the list pointers %d %d\n",lst,e);
-  //e->next = (struct list *)knmalloc(sizeof(struct list));
+  // // struct list *e = (struct list *) 
+  // printf("[LOG LIST - PUSH] changing the list pointers %d %d\n",lst,e);
+  // //e->next = (struct list *)knmalloc(sizeof(struct list));
+  // printf("[LOG LIST - PUSH] e->next allocated at %d \n",e->next);
+
   e->next = lst->next;
   printf("[LOG LIST -PUSH] next pointer changed\n");
   e->prev = lst;
