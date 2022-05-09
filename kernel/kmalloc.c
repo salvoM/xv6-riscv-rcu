@@ -39,9 +39,10 @@ knmorecore(uint nu)
   // printf("[LOG KNMORECOREUNIT] knmorecore unit called\n");
   if(nu < 4096)
     nu = 4096;
+  printf("[LOG PRIMA KALLOC]");
   p = (char*)kalloc();
-  //printf("[LOG KNMORECOREUNIT] kalloc returned %p\n", p);
-  if(p == (char*)-1)
+  printf("[LOG KNMORECOREUNIT] kalloc returned %p\n", p);
+  if(p == (char*)0)
     return 0;
   hp = (Header*)p;
   hp->s.size = nu;

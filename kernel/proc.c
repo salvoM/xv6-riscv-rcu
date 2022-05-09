@@ -296,9 +296,13 @@ fork(void)
   np->trapframe->a0 = 0;
 
   // increment reference counts on open file descriptors.
-  for(i = 0; i < NOFILE; i++)
+  printf("[LOG FORK] Before increment reference counts\n");
+  printf("[LOG FORK] p->name = %s\n", p->name);
+  for(i = 0; i < NOFILE; i++){
+    printf("p->ofile[%d] = %p \n",i, (p->ofile[i]));
     if(p->ofile[i])
       np->ofile[i] = filedup(p->ofile[i]);
+  }
   np->cwd = idup(p->cwd);
 
   safestrcpy(np->name, p->name, sizeof(p->name));
@@ -340,7 +344,7 @@ void
 exit(int status)
 {
   struct proc *p = myproc();
-
+  printf("[LOG EXIT]  \n");
   if(p == initproc)
     panic("init exiting");
 

@@ -32,7 +32,7 @@ fileinit(void)
   head = (struct list *)knmalloc(sizeof(struct list));
   lst_init(tail);
   head = tail;
-  printf("[LOG FILE] list initialized %d\n",tail);
+  printf("[LOG FILE] list initialized %p\n",tail);
 
 }
 
@@ -58,10 +58,10 @@ filealloc(void)
 
 
   //adding the file on the linked list
-  printf("[LOG FILE] pushing the file %d next %d\n",f->node,tail);
+  printf("[LOG FILE] pushing the file %p next %p\n",f->node,tail);
 
   lst_push(tail,f->node);
-  printf("[LOG FILE] file %d pushed\n",f->node);
+  printf("[LOG FILE] file %p pushed\n",f->node);
 
   tail=f->node;
   f->ref = 1;
@@ -73,9 +73,12 @@ filealloc(void)
 struct file*
 filedup(struct file *f)
 {
+  printf("[LOG FILEDUP] Starting dup \n");
   acquire(&ftable.lock);
-  if(f->ref < 1)
+  if(f->ref < 1){
+    printf("f->node = %p, f->ref = %d\n",f->node, f->ref);  
     panic("filedup");
+  }
   f->ref++;
   release(&ftable.lock);
   return f;
@@ -88,32 +91,34 @@ fileclose(struct file *f)
   struct file ff;
 
   acquire(&ftable.lock);
-  if(f->ref==1){
-    if(head==f->node){
-      printf("[LOG FILE] removing last file %d from the linked list\n",f->node);
-      //tail=f->node->prev;
+  if(f->ref < 1){
+      // panic("fileclose");
+      release(&ftable.lock);
+
+      return;
     }
-    printf("[LOG FILE] removing file %d from the linked list\n",f->node);
-    lst_remove(f->node);
-    printf("[LOG FILE] file %d removed\n", f->node);
-  
-    knfree((void*) f);
-    //printf("[LOG] fileclose called \n");
-
-  }
-
-  // if(f->ref < 1)
-  //   panic("fileclose");
+  printf("[LOG FILECLOSE] f->node = %p, f->ref = %d prima del decremento\n", f->node, f->ref);
   if(--f->ref > 0){
     release(&ftable.lock);
     return;
   }
 
+  if(f->ref==0){
+    
+    printf("[LOG FILE] removing file %p from the linked list\n",f->node);
+    lst_remove(f->node);
+    printf("[LOG FILE] file %p removed\n", f->node);
+  
+    // knfree((void*) f);
+    printf("[LOG] fileclose called \n");
+  }
+
+
   ff = *f;
  // f->ref = 0;
   f->type = FD_NONE;
   // kmem_cache_free(&ftable.cache, (void*)f);
-  // knfree((void*) f);
+  knfree((void*) f);
 
   release(&ftable.lock);
 

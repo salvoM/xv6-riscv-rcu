@@ -29,6 +29,7 @@ test0() {
     if(pid == 0){
       for(j = 0; j < NFD; j++) {
         // printf("Opening README.md");
+        // printf("Working...");
         if ((fd = open("echo", O_RDONLY)) < 0) {
           // the open() failed; exit with -1
           printf("open failed\n");
