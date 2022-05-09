@@ -18,21 +18,20 @@ struct devsw devsw[NDEV];
 struct {
   struct spinlock lock;
   struct file file[NFILE];
+  struct list *tail; //tail of the list of files
+  struct list *head; //head of the list of files
 } ftable;
 
-struct list *tail; //tail of the list of files
-struct list *head; //head of the list of files
 
 void
 fileinit(void)
 {
   initlock(&ftable.lock, "ftable");
   printf("[LOG FILE] initializing the linked list\n");
-  tail = (struct list *)knmalloc(sizeof(struct list));
-  head = (struct list *)knmalloc(sizeof(struct list));
-  lst_init(tail);
-  head = tail;
-  printf("[LOG FILE] list initialized %p\n",tail);
+  ftable.tail = (struct list *)knmalloc(sizeof(struct list));
+  lst_init(ftable.tail);
+  ftable.head = ftable.tail;
+  printf("[LOG FILE] list initialized %p\n",ftable.tail);
 
 }
 
@@ -54,16 +53,18 @@ filealloc(void)
   f = (struct file *) knmalloc(sizeof(struct file));
 
   printf("[LOG FILE] allocating memory of the file pointer on the linkedilist\n");
-  f->node = (struct list *)knmalloc(sizeof(struct list));
+  
 
 
   //adding the file on the linked list
-  printf("[LOG FILE] pushing the file %p next %p\n",f->node,tail);
+  printf("[LOG FILE] pushing the file %p next %p\n",f,ftable.tail);
 
-  lst_push(tail,f->node);
-  printf("[LOG FILE] file %p pushed\n",f->node);
+  lst_push(ftable.tail,f);
+  printf("[LOG FILE] file %p pushed\n",f);
 
-  tail=f->node;
+  // * inserimento in coda, logica andrebbe spostata in list.c
+  ftable.tail=f;
+
   f->ref = 1;
   release(&ftable.lock);
   return f;
@@ -76,8 +77,8 @@ filedup(struct file *f)
   printf("[LOG FILEDUP] Starting dup \n");
   acquire(&ftable.lock);
   if(f->ref < 1){
-    printf("f->node = %p, f->ref = %d\n",f->node, f->ref);  
-    panic("filedup");
+	// printf("f->node = %p, f->ref = %d\n",f, f->ref);  
+	panic("filedup");
   }
   f->ref++;
   release(&ftable.lock);
@@ -89,47 +90,38 @@ void
 fileclose(struct file *f)
 {
   struct file ff;
+  printf("[LOG FILECLOSE] fileclose(%p) called\n", f);
+  printf("[LOG FILECLOSE] fileclose %p <- %p -> %p \n", f->node->prev,f->node,f->node->next);
 
   acquire(&ftable.lock);
   if(f->ref < 1){
-      // panic("fileclose");
-      release(&ftable.lock);
-
-      return;
-    }
-  printf("[LOG FILECLOSE] f->node = %p, f->ref = %d prima del decremento\n", f->node, f->ref);
+	printf("[LOG FILECLOSE] PANIC fileclose %p <- %p -> %p \n", f->node->prev,f->node,f->node->next);
+	panic("fileclose");
+  }	
   if(--f->ref > 0){
-    release(&ftable.lock);
-    return;
+	release(&ftable.lock);
+	return;
   }
-
-  if(f->ref==0){
-    
-    printf("[LOG FILE] removing file %p from the linked list\n",f->node);
-    lst_remove(f->node);
-    printf("[LOG FILE] file %p removed\n", f->node);
-  
-    // knfree((void*) f);
-    printf("[LOG] fileclose called \n");
-  }
-
-
   ff = *f;
- // f->ref = 0;
+  f->ref = 0;
   f->type = FD_NONE;
-  // kmem_cache_free(&ftable.cache, (void*)f);
-  knfree((void*) f);
+//   printf("[LOG FILE] removing file %p from the linked list\n",f->node);
+  lst_remove(f->node);
+  printf("[LOG FILECLOSE] file %p removed\n", f->node);
 
+  printf("[LOG FILECLOSE] knfree(%p) \n", f);
+  knfree((void*) f);
   release(&ftable.lock);
 
   if(ff.type == FD_PIPE){
-    pipeclose(ff.pipe, ff.writable);
+	pipeclose(ff.pipe, ff.writable);
   } else if(ff.type == FD_INODE || ff.type == FD_DEVICE){
-    begin_op();
-    iput(ff.ip);
-    end_op();
+	begin_op();
+	iput(ff.ip);
+	end_op();
   }
 }
+
 
 // Get metadata about file f.
 // addr is a user virtual address, pointing to a struct stat.
@@ -140,12 +132,12 @@ filestat(struct file *f, uint64 addr)
   struct stat st;
   
   if(f->type == FD_INODE || f->type == FD_DEVICE){
-    ilock(f->ip);
-    stati(f->ip, &st);
-    iunlock(f->ip);
-    if(copyout(p->pagetable, addr, (char *)&st, sizeof(st)) < 0)
-      return -1;
-    return 0;
+	ilock(f->ip);
+	stati(f->ip, &st);
+	iunlock(f->ip);
+	if(copyout(p->pagetable, addr, (char *)&st, sizeof(st)) < 0)
+		return -1;	
+	return 0;
   }
   return -1;
 }
@@ -158,21 +150,21 @@ fileread(struct file *f, uint64 addr, int n)
   int r = 0;
 
   if(f->readable == 0)
-    return -1;
+	return -1;
 
   if(f->type == FD_PIPE){
-    r = piperead(f->pipe, addr, n);
+	r = piperead(f->pipe, addr, n);
   } else if(f->type == FD_DEVICE){
-    if(f->major < 0 || f->major >= NDEV || !devsw[f->major].read)
-      return -1;
-    r = devsw[f->major].read(1, addr, n);
+	if(f->major < 0 || f->major >= NDEV || !devsw[f->major].read)
+	  return -1;
+	r = devsw[f->major].read(1, addr, n);
   } else if(f->type == FD_INODE){
-    ilock(f->ip);
-    if((r = readi(f->ip, 1, addr, f->off, n)) > 0)
-      f->off += r;
-    iunlock(f->ip);
+	ilock(f->ip);
+	if((r = readi(f->ip, 1, addr, f->off, n)) > 0)
+	  f->off += r;
+	iunlock(f->ip);
   } else {
-    panic("fileread");
+	panic("fileread");
   }
 
   return r;
@@ -186,44 +178,44 @@ filewrite(struct file *f, uint64 addr, int n)
   int r, ret = 0;
 
   if(f->writable == 0)
-    return -1;
+	return -1;
 
   if(f->type == FD_PIPE){
-    ret = pipewrite(f->pipe, addr, n);
+	ret = pipewrite(f->pipe, addr, n);
   } else if(f->type == FD_DEVICE){
-    if(f->major < 0 || f->major >= NDEV || !devsw[f->major].write)
-      return -1;
-    ret = devsw[f->major].write(1, addr, n);
+	if(f->major < 0 || f->major >= NDEV || !devsw[f->major].write)
+	  return -1;
+	ret = devsw[f->major].write(1, addr, n);
   } else if(f->type == FD_INODE){
-    // write a few blocks at a time to avoid exceeding
-    // the maximum log transaction size, including
-    // i-node, indirect block, allocation blocks,
-    // and 2 blocks of slop for non-aligned writes.
-    // this really belongs lower down, since writei()
-    // might be writing a device like the console.
-    int max = ((MAXOPBLOCKS-1-1-2) / 2) * BSIZE;
-    int i = 0;
-    while(i < n){
-      int n1 = n - i;
-      if(n1 > max)
-        n1 = max;
+	// write a few blocks at a time to avoid exceeding
+	// the maximum log transaction size, including
+	// i-node, indirect block, allocation blocks,
+	// and 2 blocks of slop for non-aligned writes.
+	// this really belongs lower down, since writei()
+	// might be writing a device like the console.
+	int max = ((MAXOPBLOCKS-1-1-2) / 2) * BSIZE;
+	int i = 0;
+	while(i < n){
+	  int n1 = n - i;
+	  if(n1 > max)
+		n1 = max;
 
-      begin_op();
-      ilock(f->ip);
-      if ((r = writei(f->ip, 1, addr + i, f->off, n1)) > 0)
-        f->off += r;
-      iunlock(f->ip);
-      end_op();
+	  begin_op();
+	  ilock(f->ip);
+	  if ((r = writei(f->ip, 1, addr + i, f->off, n1)) > 0)
+		f->off += r;
+	  iunlock(f->ip);
+	  end_op();
 
-      if(r != n1){
-        // error from writei
-        break;
-      }
-      i += r;
-    }
-    ret = (i == n ? n : -1);
+	  if(r != n1){
+		// error from writei
+		break;
+	  }
+	  i += r;
+	}
+	ret = (i == n ? n : -1);
   } else {
-    panic("filewrite");
+	panic("filewrite");
   }
 
   return ret;

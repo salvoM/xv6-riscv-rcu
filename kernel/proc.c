@@ -344,7 +344,7 @@ void
 exit(int status)
 {
   struct proc *p = myproc();
-  printf("[LOG EXIT]  \n");
+  printf("[LOG EXIT] %s \n", p->name);
   if(p == initproc)
     panic("init exiting");
 
@@ -352,6 +352,8 @@ exit(int status)
   for(int fd = 0; fd < NOFILE; fd++){
     if(p->ofile[fd]){
       struct file *f = p->ofile[fd];
+      printf("[LOG EXIT] p->ofile[%d] = %p \n",fd, (p->ofile[fd]));
+      
       fileclose(f);
       p->ofile[fd] = 0;
     }

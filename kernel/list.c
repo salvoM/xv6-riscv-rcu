@@ -44,20 +44,23 @@ lst_pop(struct list *lst) {
 }
 
 void
-lst_push(struct list *lst, struct list *e)
+lst_push(struct list *lst, void *f)
 {
-  // // struct list *e = (struct list *) 
+  //  struct list *e = (struct list *) 
   // printf("[LOG LIST - PUSH] changing the list pointers %d %d\n",lst,e);
   // //e->next = (struct list *)knmalloc(sizeof(struct list));
   // printf("[LOG LIST - PUSH] e->next allocated at %d \n",e->next);
 
-  e->next = lst->next;
+  struct list *ptr_node = (struct list *)knmalloc(sizeof(struct list));
+  ptr_node->file = (struct file*) f;
+
+  ptr_node->next = lst->next;
   printf("[LOG LIST -PUSH] next pointer changed\n");
-  e->prev = lst;
+  ptr_node->prev = lst;
   printf("[LOG LIST - PUSH] prev pointer chnaged \n");
 
-  lst->next->prev = e;
-  lst->next = e;
+  lst->next->prev = ptr_node;
+  lst->next = ptr_node;
 }
 
 void
