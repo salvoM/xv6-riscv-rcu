@@ -30,9 +30,12 @@ cd /local && make TOOLPREFIX=/opt/riscv/toolchain/bin/riscv64-unknown-elf- qemu
 ```
 ### Enter/exit monitor mode
 Ctrl+A, c
+
+Example of commands
 ```
 x /10wx addr to examine memory
 ```
+For further info: https://qemu-project.gitlab.io/qemu/system/monitor.html 
 ### Exit from Qemu:
 Ctrl+A, x
 
