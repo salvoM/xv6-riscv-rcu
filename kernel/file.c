@@ -63,7 +63,7 @@ filealloc(void)
   printf("[LOG FILE] file %p pushed\n",f);
 
   // * inserimento in coda, logica andrebbe spostata in list.c
-  ftable.tail=f;
+  // ftable.tail=f;
 
   f->ref = 1;
   release(&ftable.lock);
@@ -91,11 +91,11 @@ fileclose(struct file *f)
 {
   struct file ff;
   printf("[LOG FILECLOSE] fileclose(%p) called\n", f);
-  printf("[LOG FILECLOSE] fileclose %p <- %p -> %p \n", f->node->prev,f->node,f->node->next);
+  // printf("[LOG FILECLOSE] fileclose %p <- %p -> %p \n", f->node->prev,f->node,f->node->next);
 
   acquire(&ftable.lock);
   if(f->ref < 1){
-	printf("[LOG FILECLOSE] PANIC fileclose %p <- %p -> %p \n", f->node->prev,f->node,f->node->next);
+	// printf("[LOG FILECLOSE] PANIC fileclose %p <- %p -> %p \n", f->node->prev,f->node,f->node->next);
 	panic("fileclose");
   }	
   if(--f->ref > 0){
@@ -106,10 +106,10 @@ fileclose(struct file *f)
   f->ref = 0;
   f->type = FD_NONE;
 //   printf("[LOG FILE] removing file %p from the linked list\n",f->node);
-  lst_remove(f->node);
-  printf("[LOG FILECLOSE] file %p removed\n", f->node);
+  // lst_remove(f->node);
+  // printf("[LOG FILECLOSE] file %p removed\n", f->node);
 
-  printf("[LOG FILECLOSE] knfree(%p) \n", f);
+  // printf("[LOG FILECLOSE] knfree(%p) \n", f);
   knfree((void*) f);
   release(&ftable.lock);
 
