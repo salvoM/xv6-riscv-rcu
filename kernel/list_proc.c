@@ -143,7 +143,8 @@ void list_del_rcu(t_list* list_ptr, t_node* node_ptr, struct spinlock* writers_l
     acquire(writers_lock_ptr);
 
     while(tmp_node_ptr != 0 && found == 0){
-        if(tmp_node_ptr->next = node_ptr){
+        // doppi puntatori per eliminare
+        if(tmp_node_ptr == node_ptr){
             //Found node to delete
             tmp_node_ptr->next = node_ptr->next;
             found = 1;
