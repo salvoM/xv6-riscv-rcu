@@ -1,12 +1,7 @@
+Spostare list_add_rcu fuori da allocproc in modo da poterla utilizzare.
+Viene usata in
+ - fork
+ - userinit
 
-1) fare il primo esercizio del lab
-OBBIETTIVO:
-creare il nostro cache allocator che gestisce una lista di oggetti (con una linkedlist?)
-2 linked list, uno che contiene gli oggetti occupati
-uno che contiene quelli liberi
-cercare il file list.c nella cartella di xv6 di washinghton. Dovrebbe essere in kernel/list.c
-
-POSSIBILI PROBLEMI
-Dobbiamo scorrere la lista ogni volta per trovare un oggetto (ma chi cazzo se ne fotte, ci pensa la RAM)
-
-provare ad implementarlo in file.c
+Così finiamo le modifiche al processo e poi usiamo list_add_rcu (in fork e userinit)
+per aggiungere il proc alla lista
