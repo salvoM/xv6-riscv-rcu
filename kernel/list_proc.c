@@ -8,14 +8,8 @@
 #include "riscv.h"
 #include "defs.h"
 #include "proc.h"
+#include "list_proc.h"
 
-
-typedef struct s_node{
-    struct proc process;
-    struct s_node* next;
-}t_node ;
-
-typedef struct t_node* t_list;
 
 
 struct spinlock wx_lock; // Guarantees mutual exclusion between writers
@@ -138,20 +132,122 @@ void list_del_rcu(t_list* list_ptr, t_node* node_ptr, struct spinlock* writers_l
     if(*list_ptr == 0){
         panic("list_del_rcu");
     }
-    t_node* tmp_node_ptr = rcu_dereference_pointer(*list_ptr);
-    
+
     acquire(writers_lock_ptr);
+
+    // Dereferencing like this? W/o read_lock is it ok?
+    t_node* tmp_node_ptr = rcu_dereference_pointer(*list_ptr);
+
+    if(tmp_node_ptr == node_ptr){
+        // Changing the head of the list
+        // *list_ptr = tmp_node_ptr->next;
+        rcu_assign_pointer(list_ptr, tmp_node_ptr->next); // Dovrebbe essere atomica
+        release(writers_lock_ptr);
+        return;
+    }
+    t_node* prev_node_ptr = tmp_node_ptr;
+    tmp_node_ptr = tmp_node_ptr->next;
+
 
     while(tmp_node_ptr != 0 && found == 0){
         // doppi puntatori per eliminare
         if(tmp_node_ptr == node_ptr){
             //Found node to delete
-            tmp_node_ptr->next = node_ptr->next;
+            prev_node_ptr->next = tmp_node_ptr->next;
             found = 1;
         }
-        tmp_node_ptr = tmp_node_ptr->next;
+        else{
+            tmp_node_ptr = tmp_node_ptr->next;
+            prev_node_ptr = prev_node_ptr->next;
+        }
+        
     }
     release(writers_lock_ptr);
+
+}
+
+int list_update_rcu(t_list* list_ptr, t_node* new_node_ptr, struct proc* proc_ptr, struct spinlock* writers_lock_ptr, t_node** ptr_to_free ){
+    int found = 0;
+    acquire(&writers_lock_ptr);
+    rcu_read_lock();
+    t_node* current_node_ptr = rcu_dereference_pointer(*list_ptr);
+
+    if(&(current_node_ptr->process) == proc_ptr){
+        // Found
+        new_node_ptr->next = current_node_ptr->next;
+        
+        *ptr_to_free = current_node_ptr;
+        
+        rcu_assign_pointer(list_ptr, current_node_ptr->next); // va fatta atomicamente
+        rcu_read_unlock();
+        release(writers_lock_ptr);
+        return 1;
+    }
+
+    t_node* prev_node_ptr = current_node_ptr;
+    current_node_ptr = current_node_ptr->next;
+
+
+    while(current_node_ptr != 0 && found == 0){
+        // doppi puntatori per fare update
+        if(&(current_node_ptr->process) == proc_ptr){
+            //Found node relative to the process
+
+            new_node_ptr->next = current_node_ptr->next; // non atomico
+            prev_node_ptr->next = new_node_ptr; // rcu_assign_pointer()
+            *ptr_to_free = current_node_ptr;
+            found = 1;
+        }
+        else{
+            current_node_ptr = current_node_ptr->next;
+            prev_node_ptr = prev_node_ptr->next;
+        }
+    }
+
+    rcu_read_unlock();
+    release(&writers_lock_ptr);
+    return found;
+}
+
+int list_del_from_proc_rcu(t_list* list_ptr, struct proc* proc_ptr, struct spinlock* writers_lock_ptr, t_node** ptr_to_free){
+    int found = 0;
+    acquire(&writers_lock_ptr);
+    rcu_read_lock();
+    t_node* current_node_ptr = rcu_dereference_pointer(*list_ptr);
+
+    if(&(current_node_ptr->process) == proc_ptr){
+        // Found        
+        *ptr_to_free = current_node_ptr;
+        
+        rcu_assign_pointer(list_ptr, current_node_ptr->next); // va fatta atomicamente
+        rcu_read_unlock();
+        release(writers_lock_ptr);
+        return 1;
+    }
+
+    t_node* prev_node_ptr = current_node_ptr;
+    current_node_ptr = current_node_ptr->next;
+
+
+    while(current_node_ptr != 0 && found == 0){
+        // doppi puntatori per fare update
+        if(&(current_node_ptr->process) == proc_ptr){
+            //Found node relative to the process
+
+            
+            prev_node_ptr->next = current_node_ptr->next; // rcu_assign_pointer() va fatto atomicamente
+            *ptr_to_free = current_node_ptr;
+            found = 1;
+        }
+        else{
+            current_node_ptr = current_node_ptr->next;
+            prev_node_ptr = prev_node_ptr->next;
+        }
+    }
+
+    rcu_read_unlock();
+    release(&writers_lock_ptr);
+    return found;
 }
 
 void init_list(t_list* list_ptr, struct spinlock* writers_lock_ptr){
