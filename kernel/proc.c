@@ -5,10 +5,19 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "list_proc.h"
+
+#define next_task(p) \
+        rcu_dereference_pointer((p)->next)
+
+#define for_each_process(p) \
+        for (p = *process_list ; (p = next_task(p)) != NULL ; )
 
 struct cpu cpus[NCPU];
 
-struct proc proc[NPROC];
+// struct proc proc[NPROC];
+t_list process_list;                //! Must be initialized!!
+struct spinlock rcu_writers_lock;   //! Must be initialized!!
 
 struct proc *initproc;
 
@@ -31,6 +40,8 @@ struct spinlock wait_lock;
 // guard page.
 void
 proc_mapstacks(pagetable_t kpgtbl) {
+  // * Allocate when needed ??
+
   struct proc *p;
   
   for(p = proc; p < &proc[NPROC]; p++) {
@@ -46,6 +57,8 @@ proc_mapstacks(pagetable_t kpgtbl) {
 void
 procinit(void)
 {
+  //*Move this logic when a process is created.
+
   struct proc *p;
   
   initlock(&pid_lock, "nextpid");
@@ -102,7 +115,7 @@ allocpid() {
 // and return with p->lock held.
 // If there are no free procs, or a memory allocation fails, return 0.
 static struct proc*
-allocproc(void)
+old_allocproc(void)
 {
   struct proc *p;
 
@@ -144,26 +157,79 @@ found:
   return p;
 }
 
+static struct proc*
+allocproc(void)
+{
+  struct proc* tmp_proc_ptr;
+  t_node* tmp_node_ptr = (t_node*)knmalloc(sizeof(t_node));
+  
+  tmp_node_ptr->process.pid = allocpid();
+  tmp_node_ptr->process.state = USED;
+
+  // Allocate a trapframe page.
+  struct trapframe* tmp_trapframe_ptr = (struct trapframe*)kalloc();
+  if(tmp_trapframe_ptr == 0){
+    //Cannot alloc a trapframe
+    //freeproc()
+    return 0;
+  }
+
+  // An empty user page table.
+  tmp_node_ptr->process.pagetable = proc_pagetable(&(tmp_node_ptr->process));
+  if(tmp_node_ptr->process.pagetable == 0){
+    //freeproc(p);
+    //release(&p->lock);
+    return 0;
+  }
+  
+  memset(&(tmp_node_ptr->process.context), 0, sizeof(tmp_node_ptr->process.context));
+  tmp_node_ptr->process.context.ra = (uint64)forkret;
+  tmp_node_ptr->process.context.sp = tmp_node_ptr->process.kstack + PGSIZE;
+
+  /* Here the process is ready to go, the node is ready to be added to the list*/
+
+  /*  RCU add to list*/
+  // rcu_read_lock();
+  // acquire(&rcu_writers_lock);
+  list_add_rcu(&process_list,tmp_node_ptr,&rcu_writers_lock);
+  // release(&rcu_writers_lock);
+  // rcu_read_unlock();
+  /*  RCU add to list*/
+  
+  return &(tmp_node_ptr->process); // ?
+}
+
 // free a proc structure and the data hanging from it,
 // including user pages.
 // p->lock must be held.
 static void
 freeproc(struct proc *p)
 {
+  t_node* node_ptr_to_free; 
+  if(list_del_from_proc_rcu(&process_list, p, &rcu_writers_lock,&node_ptr_to_free) == 0){
+    panic("proc disappeared");
+  }
   if(p->trapframe)
     kfree((void*)p->trapframe);
-  p->trapframe = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
-  p->pagetable = 0;
-  p->sz = 0;
-  p->pid = 0;
-  p->parent = 0;
-  p->name[0] = 0;
-  p->chan = 0;
-  p->killed = 0;
-  p->xstate = 0;
-  p->state = UNUSED;
+  
+  /* Reclamation phase */
+  synchronize_rcu(); // funziona? boh
+  knfree(node_ptr_to_free);
+  /* End Reclamation phase */
+  
+  /* old code*/
+  // p->trapframe = 0;
+  // p->pagetable = 0;
+  // p->sz = 0;
+  // p->pid = 0;
+  // p->parent = 0;
+  // p->name[0] = 0;
+  // p->chan = 0;
+  // p->killed = 0;
+  // p->xstate = 0;
+  // p->state = UNUSED;
 }
 
 // Create a user page table for a given process,
@@ -227,9 +293,38 @@ userinit(void)
 {
   struct proc *p;
 
-  p = allocproc();
-  initproc = p;
+  // p = allocproc();
+  // initproc = p;
   
+  /* */
+  struct proc* tmp_proc_ptr;
+  t_node* tmp_node_ptr = (t_node*)knmalloc(sizeof(t_node));
+  
+  tmp_node_ptr->process.pid = allocpid();
+  tmp_node_ptr->process.state = USED;
+
+  // Allocate a trapframe page.
+  struct trapframe* tmp_trapframe_ptr = (struct trapframe*)kalloc();
+  if(tmp_trapframe_ptr == 0){
+    //Cannot alloc a trapframe
+    // freeproc(); no perchè il proc ancora non è stato allocato
+    knfree(tmp_node_ptr);
+    return 0;
+  }
+
+  // An empty user page table.
+  tmp_node_ptr->process.pagetable = proc_pagetable(&(tmp_node_ptr->process));
+  if(tmp_node_ptr->process.pagetable == 0){
+    //freeproc(p); no perchè il proc ancora non è stato allocato
+    //release(&p->lock);
+    knfree(tmp_node_ptr);
+    return 0;
+  }
+  
+  memset(&(tmp_node_ptr->process.context), 0, sizeof(tmp_node_ptr->process.context));
+  tmp_node_ptr->process.context.ra = (uint64)forkret;
+  tmp_node_ptr->process.context.sp = tmp_node_ptr->process.kstack + PGSIZE;
+
   // allocate one user page and copy init's instructions
   // and data into it.
   uvminit(p->pagetable, initcode, sizeof(initcode));
@@ -244,7 +339,18 @@ userinit(void)
 
   p->state = RUNNABLE;
 
-  release(&p->lock);
+  /* Here the process is ready to go, the node is ready to be added to the list*/
+  /*  RCU add to list*/
+  // rcu_read_lock();
+  // acquire(&rcu_writers_lock);
+  list_add_rcu(&process_list,tmp_node_ptr,&rcu_writers_lock);
+  // release(&rcu_writers_lock);
+  // rcu_read_unlock();
+  /*  RCU add to list*/
+  /* */
+
+
+  // release(&p->lock);
 }
 
 // Grow or shrink user memory by n bytes.
@@ -253,17 +359,29 @@ int
 growproc(int n)
 {
   uint sz;
-  struct proc *p = myproc();
+  t_node* node_ptr_to_free;
+  t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
 
-  sz = p->sz;
+  struct proc* tmp_proc_ptr = myproc();
+  new_node_ptr->process = *tmp_proc_ptr;
+  sz = tmp_proc_ptr->sz;
+  
   if(n > 0){
-    if((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
+    if((sz = uvmalloc(new_node_ptr->process.pagetable, sz, sz + n)) == 0) {
       return -1;
     }
   } else if(n < 0){
-    sz = uvmdealloc(p->pagetable, sz, sz + n);
+    sz = uvmdealloc(new_node_ptr->process.pagetable, sz, sz + n);
   }
-  p->sz = sz;
+  new_node_ptr->process.sz = sz;
+  if(list_update_rcu(&process_list, new_node_ptr, tmp_proc_ptr, &rcu_writers_lock, &node_ptr_to_free) == 0){
+    panic("proc disappeared");
+  }
+  /* Reclamation phase */
+  synchronize_rcu(); // funziona? boh
+  knfree(node_ptr_to_free);
+  /* End Reclamation phase */
+
   return 0;
 }
 
