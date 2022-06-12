@@ -492,25 +492,34 @@ reparent(struct proc *p)
 // Exit the current process.  Does not return.
 // An exited process remains in the zombie state
 // until its parent calls wait().
+void closeFile(struct proc* p){
+  t_node* node_ptr_to_free;
+  t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
+  new_node_ptr->process=*p;
+  for(int fd = 0; fd < NOFILE; fd++){
+    if(new_node_ptr->process.ofile[fd]){
+      struct file *f = new_node_ptr->process.ofile[fd];
+      fileclose(f);
+      //? non dovrebbe essere necessario eseguire quest'operazione poiché alla fina facciamo la free
+      new_node_ptr->process.ofile[fd] = 0;
+    }
+  }
+  if(list_update_rcu(process_list,new_node_ptr,p,&rcu_writers_lock,&node_ptr_to_free)==0){
+        panic("[LOG closeFile] proc disappeared");
+  }
+  synchronize_rcu(); // funziona? boh
+  knfree(node_ptr_to_free);
+}
+
 void
 exit(int status)
 {
   struct proc *p = myproc();
-  t_node* node_ptr_to_free;
-  t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
-
+  
   if(p == initproc)
     panic("init exiting");
 
-  new_node_ptr->process=*p;
-  // Close all open files.
-  for(int fd = 0; fd < NOFILE; fd++){
-    if(new_node_ptr->process.ofile[fd]){
-      struct file *f = p->ofile[fd];
-      fileclose(f);
-      p->ofile[fd] = 0;
-    }
-  }
+  closeFile(p);
 
   begin_op();
   iput(p->cwd);
@@ -525,12 +534,24 @@ exit(int status)
   // Parent might be sleeping in wait().
   wakeup(p->parent);
   
-  acquire(&p->lock);
+  //OLD
+  //acquire(&p->lock);
 
-  p->xstate = status;
-  p->state = ZOMBIE;
+  //p->xstate = status;
+  //p->state = ZOMBIE;
 
-  release(&wait_lock);
+  t_node* node_ptr_to_free;
+  t_node* new_node_ptr=(t_node*)knmalloc(sizeof(t_node));
+  new_node_ptr->process=*p;  
+  new_node_ptr->process.xstate=status;
+  new_node_ptr->process.state=ZOMBIE;
+  if(list_update_rcu(&process_list, new_node_ptr, p, &rcu_writers_lock, &node_ptr_to_free) == 0){
+        panic("[LOG reparent] proc disappeared");
+  }
+  synchronize_rcu(); // funziona? boh
+  knfree(node_ptr_to_free);
+
+  //release(&wait_lock);
 
   // Jump into the scheduler, never to return.
   sched();
