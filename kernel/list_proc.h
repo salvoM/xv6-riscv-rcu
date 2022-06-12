@@ -28,7 +28,9 @@ void rcu_assign_pointer(t_list* list_ptr_dst, t_node* node_ptr_src);
 
 t_node* rcu_dereference_pointer(t_node* node_ptr);
 
+void list_init_iterator(t_list* list_ptr,t_node* iterator);
 
+void list_iterator_next(t_node* iterator);
 
 void list_add_rcu(t_list* list_ptr, t_node* node_ptr, struct spinlock* writers_lock_ptr);
 

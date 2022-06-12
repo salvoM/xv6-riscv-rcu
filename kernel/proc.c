@@ -460,16 +460,25 @@ fork(void)
 void
 reparent(struct proc *p)
 {
-  struct proc *pp;
-
-  t_node* node_ptr_to_free;
-  t_node* new_node_ptr=(t_node*)knmalloc(sizeof(t_node));
-  new_node_ptr->process=*p;
-  new_node_ptr->process.parent = initproc;
-  wakeup(initproc);
-
-  if(list_update_rcu(&process_list, new_node_ptr, p, &rcu_writers_lock, &node_ptr_to_free) == 0){
-    panic("proc disappeared");
+  t_node* iterator_node_ptr;
+// Iterator needed to iterate through the list and find all the process that have
+// proc p as parent
+// every time I find a process to modified I need to do an RCU_write
+  list_init_iterator(process_list,iterator_node_ptr);
+  while(iterator_node_ptr!=0){
+    if(iterator_node_ptr->process.parent==p){
+      t_node* node_ptr_to_free;
+      t_node* new_node_ptr=(t_node*)knmalloc(sizeof(t_node));
+      new_node_ptr->process=iterator_node_ptr->process;
+      new_node_ptr->process.parent=initproc;
+      wakeup(initproc);
+      if(list_update_rcu(&process_list, new_node_ptr, p, &rcu_writers_lock, &node_ptr_to_free) == 0){
+        panic("[LOG reparent] proc disappeared");
+      }
+      synchronize_rcu(); // funziona? boh
+      knfree(node_ptr_to_free);
+    }
+    list_iterator_next(iterator_node_ptr);
   }
   //OLD VERSION
   // for(pp = proc; pp < &proc[NPROC]; pp++){
@@ -487,13 +496,16 @@ void
 exit(int status)
 {
   struct proc *p = myproc();
+  t_node* node_ptr_to_free;
+  t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
 
   if(p == initproc)
     panic("init exiting");
 
+  new_node_ptr->process=*p;
   // Close all open files.
   for(int fd = 0; fd < NOFILE; fd++){
-    if(p->ofile[fd]){
+    if(new_node_ptr->process.ofile[fd]){
       struct file *f = p->ofile[fd];
       fileclose(f);
       p->ofile[fd] = 0;

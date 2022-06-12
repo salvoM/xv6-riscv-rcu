@@ -100,6 +100,18 @@ t_node* rcu_dereference_pointer(t_node* node_ptr){
 
 }
 
+
+/*iteratore */
+
+void list_init_iterator(t_list* list_ptr, t_node* iterator){
+    iterator=*list_ptr;
+
+}
+
+void list_iterator_next(t_node* iterator){
+    iterator=iterator->next;
+}
+/* */
 #define next_task(p) \
         rcu_dereference_pointer((p)->next)
 
