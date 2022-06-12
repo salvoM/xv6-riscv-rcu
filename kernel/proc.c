@@ -462,12 +462,22 @@ reparent(struct proc *p)
 {
   struct proc *pp;
 
-  for(pp = proc; pp < &proc[NPROC]; pp++){
-    if(pp->parent == p){
-      pp->parent = initproc;
-      wakeup(initproc);
-    }
+  t_node* node_ptr_to_free;
+  t_node* new_node_ptr=(t_node*)knmalloc(sizeof(t_node));
+  new_node_ptr->process=*p;
+  new_node_ptr->process.parent = initproc;
+  wakeup(initproc);
+
+  if(list_update_rcu(&process_list, new_node_ptr, p, &rcu_writers_lock, &node_ptr_to_free) == 0){
+    panic("proc disappeared");
   }
+  //OLD VERSION
+  // for(pp = proc; pp < &proc[NPROC]; pp++){
+  //   if(pp->parent == p){
+  //     pp->parent = initproc;
+  //     wakeup(initproc);
+  //   }
+  // }
 }
 
 // Exit the current process.  Does not return.
