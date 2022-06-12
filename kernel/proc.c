@@ -298,11 +298,11 @@ void
 userinit(void)
 {
   struct proc *p;
-
+  p=(struct proc*)knmalloc(sizeof(struct proc));
   // p = allocproc();
   // initproc = p;
   
-  /* */
+  /*
   struct proc* tmp_proc_ptr;
   t_node* tmp_node_ptr = (t_node*)knmalloc(sizeof(t_node));
   
@@ -331,6 +331,8 @@ userinit(void)
   tmp_node_ptr->process.context.ra = (uint64)forkret;
   tmp_node_ptr->process.context.sp = tmp_node_ptr->process.kstack + PGSIZE;
 
+  */
+
   // allocate one user page and copy init's instructions
   // and data into it.
   uvminit(p->pagetable, initcode, sizeof(initcode));
@@ -349,7 +351,8 @@ userinit(void)
   /*  RCU add to list*/
   // rcu_read_lock();
   // acquire(&rcu_writers_lock);
-  list_add_rcu(&process_list,tmp_node_ptr,&rcu_writers_lock);
+  p=allocproc(p);
+  //list_add_rcu(&process_list,tmp_node_ptr,&rcu_writers_lock);
   // release(&rcu_writers_lock);
   // rcu_read_unlock();
   /*  RCU add to list*/
