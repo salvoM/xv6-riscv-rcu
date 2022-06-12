@@ -178,6 +178,7 @@ void list_del_rcu(t_list* list_ptr, t_node* node_ptr, struct spinlock* writers_l
 
 }
 
+//find the node from the process
 int list_update_rcu(t_list* list_ptr, t_node* new_node_ptr, struct proc* proc_ptr, struct spinlock* writers_lock_ptr, t_node** ptr_to_free ){
     int found = 0;
     acquire(&writers_lock_ptr);
@@ -203,6 +204,49 @@ int list_update_rcu(t_list* list_ptr, t_node* new_node_ptr, struct proc* proc_pt
     while(current_node_ptr != 0 && found == 0){
         // doppi puntatori per fare update
         if(&(current_node_ptr->process) == proc_ptr){
+            //Found node relative to the process
+
+            new_node_ptr->next = current_node_ptr->next; // non atomico
+            prev_node_ptr->next = new_node_ptr; // rcu_assign_pointer()
+            *ptr_to_free = current_node_ptr;
+            found = 1;
+        }
+        else{
+            current_node_ptr = current_node_ptr->next;
+            prev_node_ptr = prev_node_ptr->next;
+        }
+    }
+
+    rcu_read_unlock();
+    release(&writers_lock_ptr);
+    return found;
+}
+//finds the node from the process' pid
+int list_update_rcu(t_list* list_ptr, t_node* new_node_ptr, int pid, struct spinlock* writers_lock_ptr, t_node** ptr_to_free ){
+    int found = 0;
+    acquire(&writers_lock_ptr);
+    rcu_read_lock();
+    t_node* current_node_ptr = rcu_dereference_pointer(*list_ptr);
+
+    if(&(current_node_ptr->process.pid) == pid){
+        // Found
+        new_node_ptr->next = current_node_ptr->next;
+        
+        *ptr_to_free = current_node_ptr;
+        
+        rcu_assign_pointer(list_ptr, current_node_ptr->next); // va fatta atomicamente
+        rcu_read_unlock();
+        release(writers_lock_ptr);
+        return 1;
+    }
+
+    t_node* prev_node_ptr = current_node_ptr;
+    current_node_ptr = current_node_ptr->next;
+
+
+    while(current_node_ptr != 0 && found == 0){
+        // doppi puntatori per fare update
+        if(&(current_node_ptr->process.pid) == pid){
             //Found node relative to the process
 
             new_node_ptr->next = current_node_ptr->next; // non atomico

@@ -1,7 +1,10 @@
-Spostare list_add_rcu fuori da allocproc in modo da poterla utilizzare.
+[DONE]Spostare list_add_rcu fuori da allocproc in modo da poterla utilizzare.
 Viene usata in
- - fork
- - userinit
-
+ - fork 
+ - userinit 
 Così finiamo le modifiche al processo e poi usiamo list_add_rcu (in fork e userinit)
 per aggiungere il proc alla lista
+
+[] Modificare kill(int pid). Bisogna cercare il processo a partire dal pid e poi modificare la lista. Sarebbe intelligente
+evitare di scorrere due volte la lista, una volta per trovare il processo ed una seconda volta per aggiornare la lista. Per fare ciò bisognerebbe implementare una funzione direttamente
+in list_proc

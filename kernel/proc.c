@@ -546,7 +546,7 @@ exit(int status)
   new_node_ptr->process.xstate=status;
   new_node_ptr->process.state=ZOMBIE;
   if(list_update_rcu(&process_list, new_node_ptr, p, &rcu_writers_lock, &node_ptr_to_free) == 0){
-        panic("[LOG reparent] proc disappeared");
+        panic("[LOG exit] proc disappeared");
   }
   synchronize_rcu(); // funziona? boh
   knfree(node_ptr_to_free);
@@ -740,16 +740,34 @@ void
 wakeup(void *chan)
 {
   struct proc *p;
-
-  for(p = proc; p < &proc[NPROC]; p++) {
-    if(p != myproc()){
-      acquire(&p->lock);
-      if(p->state == SLEEPING && p->chan == chan) {
-        p->state = RUNNABLE;
+  t_node* iterator_node_ptr;
+  list_init_iterator(process_list,iterator_node_ptr);
+  while(iterator_node_ptr!=0){
+    if(&(iterator_node_ptr->process)!=myproc()){
+      if(iterator_node_ptr->process.state == SLEEPING && iterator_node_ptr->process.chan==chan){
+        t_node* node_ptr_to_free;
+        t_node* new_node_ptr=(t_node*)knmalloc(sizeof(t_node));
+        new_node_ptr->process=iterator_node_ptr->process;
+        new_node_ptr->process.state=RUNNABLE;
+        if(list_update_rcu(&process_list, new_node_ptr, p, &rcu_writers_lock, &node_ptr_to_free) == 0){
+          panic("[LOG wakeup] proc disappeared");
+        }
+        synchronize_rcu(); // funziona? boh
+        knfree(node_ptr_to_free);
       }
-      release(&p->lock);
     }
+    list_iterator_next(iterator_node_ptr);
   }
+  /*                    OLD              */
+  // for(p = proc; p < &proc[NPROC]; p++) {
+  //   if(p != myproc()){
+  //     acquire(&p->lock);
+  //     if(p->state == SLEEPING && p->chan == chan) {
+  //       p->state = RUNNABLE;
+  //     }
+  //     release(&p->lock);
+  //   }
+  // }
 }
 
 // Kill the process with the given pid.
@@ -759,6 +777,16 @@ int
 kill(int pid)
 {
   struct proc *p;
+
+  t_node* node_ptr_to_free;
+  t_node* new_node_ptr=(t_node*)knmalloc(sizeof(t_node));
+  new_node_ptr->process=iterator_node_ptr->process;
+  new_node_ptr->process.state=RUNNABLE;
+  if(list_update_rcu(&process_list, new_node_ptr, p, &rcu_writers_lock, &node_ptr_to_free) == 0){
+    panic("[LOG wakeup] proc disappeared");
+  }
+  synchronize_rcu(); // funziona? boh
+  knfree(node_ptr_to_free);
 
   for(p = proc; p < &proc[NPROC]; p++){
     acquire(&p->lock);
