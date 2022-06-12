@@ -16,12 +16,12 @@ struct spinlock wx_lock; // Guarantees mutual exclusion between writers
 
 void rcu_read_lock(){
     //No block or sleep in read critical section
-    push_off();
+    push_off();//disables interrupts
 }
 
 void rcu_read_unlock(){
     // End of no-block/sleep zone
-    pop_off();
+    pop_off();//enable interrupts
 }
 
 void synchronize_rcu(){

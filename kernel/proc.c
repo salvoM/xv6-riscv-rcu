@@ -158,11 +158,15 @@ found:
 }
 
 static struct proc*
-allocproc(void)
+allocproc(struct proc* proc)
 {
-  struct proc* tmp_proc_ptr;
+  //non so a cosa serve
+  //struct proc* tmp_proc_ptr;
   t_node* tmp_node_ptr = (t_node*)knmalloc(sizeof(t_node));
   
+  //dopo questa operazione forse dovrei liberare l'area di memoria occupata da proc
+  tmp_node_ptr->process=*proc;
+
   tmp_node_ptr->process.pid = allocpid();
   tmp_node_ptr->process.state = USED;
 
@@ -191,6 +195,8 @@ allocproc(void)
   /*  RCU add to list*/
   // rcu_read_lock();
   // acquire(&rcu_writers_lock);
+  
+  //!questa operazione viene 
   list_add_rcu(&process_list,tmp_node_ptr,&rcu_writers_lock);
   // release(&rcu_writers_lock);
   // rcu_read_unlock();
@@ -394,14 +400,19 @@ fork(void)
   struct proc *np;
   struct proc *p = myproc();
 
+  np=(struct proc*)knmalloc(sizeof(struct proc));
+
+  //! the process should be allocated only after has been modified
   // Allocate process.
-  if((np = allocproc()) == 0){
-    return -1;
-  }
+  // if((np = allocproc(np)) == 0){
+  //   return -1;
+  // }
 
   // Copy user memory from parent to child.
+  //!here we have a reader
   if(uvmcopy(p->pagetable, np->pagetable, p->sz) < 0){
-    freeproc(np);
+    //not necessary to free anymore, since we have no allocate yet
+    //freeproc(np);
     release(&np->lock);
     return -1;
   }
@@ -425,13 +436,18 @@ fork(void)
 
   release(&np->lock);
 
-  acquire(&wait_lock);
+  //acquire(&wait_lock);
   np->parent = p;
-  release(&wait_lock);
+  //release(&wait_lock);
 
-  acquire(&np->lock);
+  //acquire(&np->lock);
   np->state = RUNNABLE;
-  release(&np->lock);
+  //release(&np->lock);
+
+  // Allocate process.
+  if((np = allocproc(np)) == 0){
+    return -1;
+  }
 
   return pid;
 }
