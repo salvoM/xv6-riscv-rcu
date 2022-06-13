@@ -15,7 +15,9 @@
 
 struct cpu cpus[NCPU];
 
-// struct proc proc[NPROC];
+int bitmap[NPROC];
+
+struct proc proc[NPROC];
 t_list process_list;                //! Must be initialized!!
 struct spinlock rcu_writers_lock;   //! Must be initialized!!
 
@@ -41,16 +43,29 @@ struct spinlock wait_lock;
 void
 proc_mapstacks(pagetable_t kpgtbl) {
   // * Allocate when needed ??
-
-  struct proc *p;
   
-  for(p = proc; p < &proc[NPROC]; p++) {
+  int n;
+
+
+  for(n=0; n<NPROC;n++){
     char *pa = kalloc();
     if(pa == 0)
       panic("kalloc");
-    uint64 va = KSTACK((int) (p - proc));
+    uint64 va = KSTACK((int) (n));
     kvmmap(kpgtbl, va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
   }
+
+  /*   OLD    */
+  // struct proc *p;
+
+  
+  // for(p = proc; p < &proc[NPROC]; p++) {
+  //   char *pa = kalloc();
+  //   if(pa == 0)
+  //     panic("kalloc");
+  //   uint64 va = KSTACK((int) (p - proc));
+  //   kvmmap(kpgtbl, va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
+  // }
 }
 
 // initialize the proc table at boot time.
@@ -63,10 +78,12 @@ procinit(void)
   
   initlock(&pid_lock, "nextpid");
   initlock(&wait_lock, "wait_lock");
-  for(p = proc; p < &proc[NPROC]; p++) {
-      initlock(&p->lock, "proc");
-      p->kstack = KSTACK((int) (p - proc));
-  }
+
+  //this part has been moved at process creation time
+  // for(p = proc; p < &proc[NPROC]; p++) {
+  //     initlock(&p->lock, "proc");
+  //     p->kstack = KSTACK((int) (p - proc));
+  // }
 }
 
 // Must be called with interrupts disabled,
@@ -170,6 +187,23 @@ allocproc(struct proc* proc)
   tmp_node_ptr->process.pid = allocpid();
   tmp_node_ptr->process.state = USED;
 
+
+  //Allocate kernel stack
+  int n;
+  int found=0;
+  for(n=0;n<NPROC;n++){
+    if(bitmap[n]==0){
+      bitmap[n]=1;
+      tmp_node_ptr->process.nKStack=n;
+      initlock(&tmp_node_ptr->process.lock, "proc");
+      tmp_node_ptr->process.kstack=KSTACK((int) (n));
+      found=1;
+      break;
+    }
+  }
+  if(!found){
+    panic("kernelstack overflow");
+  }
   // Allocate a trapframe page.
   struct trapframe* tmp_trapframe_ptr = (struct trapframe*)kalloc();
   if(tmp_trapframe_ptr == 0){
@@ -220,6 +254,9 @@ freeproc(struct proc *p)
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   
+  //Deferantiation of the kernel stack page
+  bitmap[p->nKStack]=0;
+
   /* Reclamation phase */
   synchronize_rcu(); // funziona? boh
   knfree(node_ptr_to_free);
@@ -413,6 +450,8 @@ fork(void)
 
   // Copy user memory from parent to child.
   //!here we have a reader
+  //STARTING RCU READING
+  rcu_read_lock();
   if(uvmcopy(p->pagetable, np->pagetable, p->sz) < 0){
     //not necessary to free anymore, since we have no allocate yet
     //freeproc(np);
@@ -441,6 +480,8 @@ fork(void)
 
   //acquire(&wait_lock);
   np->parent = p;
+  //RCU READ FINISH
+  rcu_read_unlock();
   //release(&wait_lock);
 
   //acquire(&np->lock);
@@ -464,13 +505,16 @@ reparent(struct proc *p)
 // Iterator needed to iterate through the list and find all the process that have
 // proc p as parent
 // every time I find a process to modified I need to do an RCU_write
+  
   list_init_iterator(process_list,iterator_node_ptr);
   while(iterator_node_ptr!=0){
+    //rcu_read_lock();
     if(iterator_node_ptr->process.parent==p){
       t_node* node_ptr_to_free;
       t_node* new_node_ptr=(t_node*)knmalloc(sizeof(t_node));
       new_node_ptr->process=iterator_node_ptr->process;
       new_node_ptr->process.parent=initproc;
+      rcu_read_unlock();
       wakeup(initproc);
       if(list_update_rcu(&process_list, new_node_ptr, p, &rcu_writers_lock, &node_ptr_to_free) == 0){
         panic("[LOG reparent] proc disappeared");
@@ -479,6 +523,8 @@ reparent(struct proc *p)
       knfree(node_ptr_to_free);
     }
     list_iterator_next(iterator_node_ptr);
+    //rcu_read_unlock();
+
   }
   //OLD VERSION
   // for(pp = proc; pp < &proc[NPROC]; pp++){
@@ -560,10 +606,12 @@ exit(int status)
 
 // Wait for a child process to exit and return its pid.
 // Return -1 if this process has no children.
+
+//!READER
 int
 wait(uint64 addr)
 {
-  struct proc *np;
+  //struct proc *np;
   int havekids, pid;
   struct proc *p = myproc();
 
@@ -572,38 +620,75 @@ wait(uint64 addr)
   for(;;){
     // Scan through table looking for exited children.
     havekids = 0;
-    for(np = proc; np < &proc[NPROC]; np++){
-      if(np->parent == p){
-        // make sure the child isn't still in exit() or swtch().
-        acquire(&np->lock);
 
+    rcu_read_lock();
+    t_node* iterator_node_ptr;
+    list_init_iterator(process_list,iterator_node_ptr);
+    while (iterator_node_ptr!=0){
+      if(iterator_node_ptr->process.parent == p){
         havekids = 1;
-        if(np->state == ZOMBIE){
+        if(iterator_node_ptr->process.state == ZOMBIE){
           // Found one.
-          pid = np->pid;
-          if(addr != 0 && copyout(p->pagetable, addr, (char *)&np->xstate,
-                                  sizeof(np->xstate)) < 0) {
-            release(&np->lock);
+          pid = iterator_node_ptr->process.pid;
+          if(addr != 0 && copyout(p->pagetable, addr, (char *)&iterator_node_ptr->process.xstate,
+                                  sizeof(iterator_node_ptr->process.xstate)) < 0) {
+            //? questo release serve??
+            //? release(&np->lock);
+            rcu_read_unlock();
             release(&wait_lock);
             return -1;
           }
-          freeproc(np);
-          release(&np->lock);
+          rcu_read_unlock();
+          freeproc(&(iterator_node_ptr->process));
+          //release(&np->lock);
           release(&wait_lock);
+
           return pid;
         }
-        release(&np->lock);
       }
     }
-
     // No point waiting if we don't have any children.
     if(!havekids || p->killed){
+      rcu_read_unlock();
       release(&wait_lock);
       return -1;
     }
-    
     // Wait for a child to exit.
-    sleep(p, &wait_lock);  //DOC: wait-sleep
+    sleep(p, &wait_lock);  //DOC: wait-sleep 
+    
+    /*            OLD             */
+    // for(np = proc; np < &proc[NPROC]; np++){
+    //   if(np->parent == p){
+    //     // make sure the child isn't still in exit() or swtch().
+    //     acquire(&np->lock);
+
+    //     havekids = 1;
+    //     if(np->state == ZOMBIE){
+    //       // Found one.
+    //       pid = np->pid;
+    //       if(addr != 0 && copyout(p->pagetable, addr, (char *)&np->xstate,
+    //                               sizeof(np->xstate)) < 0) {
+    //         release(&np->lock);
+    //         release(&wait_lock);
+    //         return -1;
+    //       }
+    //       freeproc(np);
+    //       release(&np->lock);
+    //       release(&wait_lock);
+    //       return pid;
+    //     }
+    //     release(&np->lock);
+    //   }
+    // }
+
+    // // No point waiting if we don't have any children.
+    // if(!havekids || p->killed){
+    //   release(&wait_lock);
+    //   return -1;
+    // }
+    
+    // // Wait for a child to exit.
+    // sleep(p, &wait_lock);  //DOC: wait-sleep
   }
 }
 
@@ -773,6 +858,8 @@ wakeup(void *chan)
 // Kill the process with the given pid.
 // The victim won't exit until it tries to return
 // to user space (see usertrap() in trap.c).
+
+//TODO: devo trovare il processo a partire dal suo pid e poi aggiornarlo
 int
 kill(int pid)
 {
@@ -780,14 +867,6 @@ kill(int pid)
 
   t_node* node_ptr_to_free;
   t_node* new_node_ptr=(t_node*)knmalloc(sizeof(t_node));
-  new_node_ptr->process=iterator_node_ptr->process;
-  new_node_ptr->process.state=RUNNABLE;
-  if(list_update_rcu(&process_list, new_node_ptr, p, &rcu_writers_lock, &node_ptr_to_free) == 0){
-    panic("[LOG wakeup] proc disappeared");
-  }
-  synchronize_rcu(); // funziona? boh
-  knfree(node_ptr_to_free);
-
   for(p = proc; p < &proc[NPROC]; p++){
     acquire(&p->lock);
     if(p->pid == pid){
