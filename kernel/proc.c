@@ -295,37 +295,10 @@ userinit(void)
 {
   struct proc *p;
 
-  // p = allocproc();
+  p = allocproc();
   // initproc = p;
   
   /* */
-  struct proc* tmp_proc_ptr;
-  t_node* tmp_node_ptr = (t_node*)knmalloc(sizeof(t_node));
-  
-  tmp_node_ptr->process.pid = allocpid();
-  tmp_node_ptr->process.state = USED;
-
-  // Allocate a trapframe page.
-  struct trapframe* tmp_trapframe_ptr = (struct trapframe*)kalloc();
-  if(tmp_trapframe_ptr == 0){
-    //Cannot alloc a trapframe
-    // freeproc(); no perchè il proc ancora non è stato allocato
-    knfree(tmp_node_ptr);
-    return 0;
-  }
-
-  // An empty user page table.
-  tmp_node_ptr->process.pagetable = proc_pagetable(&(tmp_node_ptr->process));
-  if(tmp_node_ptr->process.pagetable == 0){
-    //freeproc(p); no perchè il proc ancora non è stato allocato
-    //release(&p->lock);
-    knfree(tmp_node_ptr);
-    return 0;
-  }
-  
-  memset(&(tmp_node_ptr->process.context), 0, sizeof(tmp_node_ptr->process.context));
-  tmp_node_ptr->process.context.ra = (uint64)forkret;
-  tmp_node_ptr->process.context.sp = tmp_node_ptr->process.kstack + PGSIZE;
 
   // allocate one user page and copy init's instructions
   // and data into it.
@@ -340,6 +313,16 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
+
+  // Fine modifiche al processo
+
+  //Creo il nodo 
+  struct proc* tmp_proc_ptr;
+  t_node* tmp_node_ptr = (t_node*)knmalloc(sizeof(t_node));
+
+  //Riempio il nodo
+  tmp_node_ptr->process = *p;
+  tmp_node_ptr->next = 0;
 
   /* Here the process is ready to go, the node is ready to be added to the list*/
   /*  RCU add to list*/
@@ -394,7 +377,11 @@ fork(void)
 {
   int i, pid;
   struct proc *np;
+  
+  rcu_read_lock();
   struct proc *p = myproc();
+  struct proc process = *p;
+  rcu_read_unlock();
 
   // Allocate process.
   if((np = allocproc()) == 0){
@@ -402,39 +389,55 @@ fork(void)
   }
 
   // Copy user memory from parent to child.
-  if(uvmcopy(p->pagetable, np->pagetable, p->sz) < 0){
+  if(uvmcopy(process.pagetable, np->pagetable, process.sz) < 0){
     freeproc(np);
-    release(&np->lock);
     return -1;
   }
-  np->sz = p->sz;
+  np->sz = process.sz;
 
   // copy saved user registers.
-  *(np->trapframe) = *(p->trapframe);
+  *(np->trapframe) = *(process.trapframe);
 
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
 
   // increment reference counts on open file descriptors.
   for(i = 0; i < NOFILE; i++)
-    if(p->ofile[i])
-      np->ofile[i] = filedup(p->ofile[i]);
-  np->cwd = idup(p->cwd);
+    if(process.ofile[i])
+      np->ofile[i] = filedup(process.ofile[i]);
+  np->cwd = idup(process.cwd);
 
-  safestrcpy(np->name, p->name, sizeof(p->name));
+  safestrcpy(np->name, process.name, sizeof(process.name));
 
   pid = np->pid;
 
-  release(&np->lock);
+
 
   acquire(&wait_lock);
   np->parent = p;
   release(&wait_lock);
 
-  acquire(&np->lock);
   np->state = RUNNABLE;
-  release(&np->lock);
+  // Fine modifiche al processo
 
+  //Creo il nodo 
+  struct proc* tmp_proc_ptr;
+  t_node* tmp_node_ptr = (t_node*)knmalloc(sizeof(t_node));
+
+  //Riempio il nodo
+  tmp_node_ptr->process = *np;
+  tmp_node_ptr->next = 0;
+
+  /* Here the process is ready to go, the node is ready to be added to the list*/
+  /*  RCU add to list*/
+  // rcu_read_lock();
+  // acquire(&rcu_writers_lock);
+  list_add_rcu(&process_list,tmp_node_ptr,&rcu_writers_lock);
+  // release(&rcu_writers_lock);
+  // rcu_read_unlock();
+  /*  RCU add to list*/
+  /* */
+  
   return pid;
 }
 
