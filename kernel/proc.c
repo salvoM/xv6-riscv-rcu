@@ -173,7 +173,8 @@ allocproc(void)
     //freeproc()
     return 0;
   }
-
+  tmp_node_ptr->process.trapframe = tmp_trapframe_ptr;
+  
   // An empty user page table.
   tmp_node_ptr->process.pagetable = proc_pagetable(&(tmp_node_ptr->process));
   if(tmp_node_ptr->process.pagetable == 0){
