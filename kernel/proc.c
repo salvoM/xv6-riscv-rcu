@@ -7,17 +7,21 @@
 #include "defs.h"
 #include "list_proc.h"
 
-#define next_task(p) \
-        rcu_dereference_pointer((p)->next)
-
-#define for_each_process(p) \
-        for (p = *process_list ; (p = next_task(p)) != NULL ; )
-
 struct cpu cpus[NCPU];
 
 // struct proc proc[NPROC];
 t_list process_list;                //! Must be initialized!!
 struct spinlock rcu_writers_lock;   //! Must be initialized!!
+
+#define next_node(p) \
+        rcu_dereference_pointer((p)->next)
+
+#define for_each_node(p) \
+        for (p = process_list ; (p = next_node(p)) != 0 ; )
+
+#define list_entry_for_process(ptr, type, member) \
+        (type *)((char *)(ptr) - (unsigned long)(&((type *)0)->member))
+
 
 struct proc *initproc;
 
@@ -430,11 +434,20 @@ void
 reparent(struct proc *p)
 {
   struct proc *pp;
+  t_node* tmp_node_ptr;
+  t_node* ptr_node_to_free;
+  
+  tmp_node_ptr = list_entry_for_process(p, t_node, process);
 
-  for(pp = proc; pp < &proc[NPROC]; pp++){
-    if(pp->parent == p){
-      pp->parent = initproc;
-      wakeup(initproc);
+
+  for_each_node(tmp_node_ptr){
+    if(tmp_node_ptr->process.parent == p){
+      t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
+      new_node_ptr->process = tmp_node_ptr->process;
+      new_node_ptr->process.parent = initproc;
+      list_update_rcu(&process_list, new_node_ptr, p, &rcu_writers_lock, &ptr_node_to_free);
+      list_del_rcu(&process_list, ptr_node_to_free, &rcu_writers_lock);
+      wakeup(initproc); // Boh?
     }
   }
 }
