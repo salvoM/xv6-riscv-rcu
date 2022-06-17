@@ -361,11 +361,11 @@ fork(void)
   int i, pid;
   struct proc *np;
   
-  rcu_read_lock();
+  // La sezione critica non c'è perchè myproc disabilita (e riabilita) gli interrupts
+  // queste operazioni corrispondono a rcu_read_lock/unlock
   struct proc *p = myproc();
   struct proc process = *p;
-  rcu_read_unlock();
-
+  
   // Allocate process.
   if((np = allocproc()) == 0){
     return -1;
