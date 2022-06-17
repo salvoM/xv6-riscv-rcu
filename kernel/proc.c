@@ -161,43 +161,44 @@ static struct proc*
 allocproc(void)
 {
   struct proc* tmp_proc_ptr;
-  t_node* tmp_node_ptr = (t_node*)knmalloc(sizeof(t_node));
+  tmp_proc_ptr = (struct proc*)knmalloc((sizeof(struct proc)));
   
-  tmp_node_ptr->process.pid = allocpid();
-  tmp_node_ptr->process.state = USED;
+  
+  tmp_proc_ptr->pid = allocpid();
+  tmp_proc_ptr->state = USED;
+
 
   // Allocate a trapframe page.
   struct trapframe* tmp_trapframe_ptr = (struct trapframe*)kalloc();
   if(tmp_trapframe_ptr == 0){
     //Cannot alloc a trapframe
-    //freeproc()
+    knfree(tmp_proc_ptr);
     return 0;
   }
-  tmp_node_ptr->process.trapframe = tmp_trapframe_ptr;
+  tmp_proc_ptr->trapframe = tmp_trapframe_ptr;
   
   // An empty user page table.
-  tmp_node_ptr->process.pagetable = proc_pagetable(&(tmp_node_ptr->process));
-  if(tmp_node_ptr->process.pagetable == 0){
-    //freeproc(p);
-    //release(&p->lock);
+  tmp_proc_ptr->pagetable = proc_pagetable(tmp_proc_ptr);
+  if(tmp_proc_ptr->pagetable == 0){
+      knfree(tmp_proc_ptr);
     return 0;
   }
   
-  memset(&(tmp_node_ptr->process.context), 0, sizeof(tmp_node_ptr->process.context));
-  tmp_node_ptr->process.context.ra = (uint64)forkret;
-  tmp_node_ptr->process.context.sp = tmp_node_ptr->process.kstack + PGSIZE;
+  memset(&(tmp_proc_ptr->context), 0, sizeof(tmp_proc_ptr->context));
+  tmp_proc_ptr->context.ra = (uint64)forkret;
+  tmp_proc_ptr->context.sp = tmp_proc_ptr->kstack + PGSIZE;
 
   /* Here the process is ready to go, the node is ready to be added to the list*/
 
   /*  RCU add to list*/
   // rcu_read_lock();
   // acquire(&rcu_writers_lock);
-  list_add_rcu(&process_list,tmp_node_ptr,&rcu_writers_lock);
+  // list_add_rcu(&process_list,tmp_node_ptr,&rcu_writers_lock);
   // release(&rcu_writers_lock);
   // rcu_read_unlock();
   /*  RCU add to list*/
   
-  return &(tmp_node_ptr->process); // ?
+  return tmp_proc_ptr; // ?
 }
 
 // free a proc structure and the data hanging from it,
