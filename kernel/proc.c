@@ -207,31 +207,14 @@ allocproc(void)
 static void
 freeproc(struct proc *p)
 {
-  t_node* node_ptr_to_free; 
-  if(list_del_from_proc_rcu(&process_list, p, &rcu_writers_lock,&node_ptr_to_free) == 0){
-    panic("proc disappeared");
-  }
+
   if(p->trapframe)
     kfree((void*)p->trapframe);
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   
-  /* Reclamation phase */
-  synchronize_rcu(); // funziona? boh
-  knfree(node_ptr_to_free);
-  /* End Reclamation phase */
-  
-  /* old code*/
-  // p->trapframe = 0;
-  // p->pagetable = 0;
-  // p->sz = 0;
-  // p->pid = 0;
-  // p->parent = 0;
-  // p->name[0] = 0;
-  // p->chan = 0;
-  // p->killed = 0;
-  // p->xstate = 0;
-  // p->state = UNUSED;
+  // Manca la parte sui KSTACKS
+  knfree(p);
 }
 
 // Create a user page table for a given process,
@@ -437,7 +420,7 @@ fork(void)
   // rcu_read_unlock();
   /*  RCU add to list*/
   /* */
-  
+
   return pid;
 }
 
