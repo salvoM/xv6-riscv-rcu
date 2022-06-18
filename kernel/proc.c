@@ -9,6 +9,10 @@
 
 struct cpu cpus[NCPU];
 
+// Per i kstacks
+int bitmap[NPROC];
+
+
 // struct proc proc[NPROC];
 t_list process_list;                //! Must be initialized!!
 struct spinlock rcu_writers_lock;   //! Must be initialized!!
@@ -46,15 +50,16 @@ void
 proc_mapstacks(pagetable_t kpgtbl) {
   // * Allocate when needed ??
 
-  struct proc *p;
-  
-  for(p = proc; p < &proc[NPROC]; p++) {
+  int n;
+
+  for(n = 0; n < NPROC; n++){
     char *pa = kalloc();
     if(pa == 0)
       panic("kalloc");
-    uint64 va = KSTACK((int) (p - proc));
+    uint64 va = KSTACK((int) (n));
     kvmmap(kpgtbl, va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
   }
+
 }
 
 // initialize the proc table at boot time.
@@ -62,15 +67,12 @@ void
 procinit(void)
 {
   //*Move this logic when a process is created.
-
-  struct proc *p;
   
   initlock(&pid_lock, "nextpid");
   initlock(&wait_lock, "wait_lock");
-  for(p = proc; p < &proc[NPROC]; p++) {
-      initlock(&p->lock, "proc");
-      p->kstack = KSTACK((int) (p - proc));
-  }
+  initlock(&rcu_writers_lock, "rcu_writers_lock");
+  init_list(&process_list, &rcu_writers_lock);
+
 }
 
 // Must be called with interrupts disabled,
@@ -125,6 +127,22 @@ allocproc(void)
   tmp_proc_ptr->pid = allocpid();
   tmp_proc_ptr->state = USED;
 
+  //Allocate kernel stack
+  int n;
+  int found=0;
+  for(n=0;n<NPROC;n++){
+    if(bitmap[n]==0){
+      bitmap[n]=1;
+      tmp_node_ptr->process.nKStack=n;
+      initlock(&tmp_node_ptr->process.lock, "proc");
+      tmp_node_ptr->process.kstack=KSTACK((int) (n));
+      found=1;
+      break;
+    }
+  }
+  if(!found){
+    panic("kernelstack overflow");
+  }
 
   // Allocate a trapframe page.
   struct trapframe* tmp_trapframe_ptr = (struct trapframe*)kalloc();
@@ -171,7 +189,8 @@ freeproc(struct proc *p)
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   
-  // Manca la parte sui KSTACKS
+  // KSTACKS
+  bitmap[p->nKStack] = 0;
   knfree(p);
 }
 

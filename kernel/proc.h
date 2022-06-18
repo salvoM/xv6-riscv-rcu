@@ -91,6 +91,7 @@ struct proc {
   void *chan;                  // If non-zero, sleeping on chan
   int killed;                  // If non-zero, have been killed
   int xstate;                  // Exit status to be returned to parent's wait
+  int nKStack;                 // identifier of the kstack used by the process
   int pid;                     // Process ID
 
   // proc_tree_lock must be held when using this:
