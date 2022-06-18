@@ -446,10 +446,33 @@ reparent(struct proc *p)
       new_node_ptr->process = tmp_node_ptr->process;
       new_node_ptr->process.parent = initproc;
       list_update_rcu(&process_list, new_node_ptr, p, &rcu_writers_lock, &ptr_node_to_free);
-      list_del_rcu(&process_list, ptr_node_to_free, &rcu_writers_lock);
+      synchronize_rcu(); // funziona? boh
+      freeproc(&(ptr_node_to_free->process));
+      knfree(ptr_node_to_free);
       wakeup(initproc); // Boh?
     }
   }
+}
+
+// Helper function that closes all the file descriptors of a given process
+void closeFile(struct proc* p){
+  t_node* node_ptr_to_free;
+  t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
+  new_node_ptr->process=*p;
+  for(int fd = 0; fd < NOFILE; fd++){
+    if(new_node_ptr->process.ofile[fd]){
+      struct file *f = new_node_ptr->process.ofile[fd];
+      fileclose(f);
+      //? non dovrebbe essere necessario eseguire quest'operazione poiché alla fine facciamo la free
+      new_node_ptr->process.ofile[fd] = 0;
+    }
+  }
+  if(list_update_rcu(&process_list, new_node_ptr, p, &rcu_writers_lock, &node_ptr_to_free) == 0){
+        panic("[LOG closeFile] proc disappeared");
+  }
+  synchronize_rcu(); // funziona? boh
+  freeproc(&(node_ptr_to_free->process));
+  knfree(node_ptr_to_free);
 }
 
 // Exit the current process.  Does not return.
@@ -464,13 +487,7 @@ exit(int status)
     panic("init exiting");
 
   // Close all open files.
-  for(int fd = 0; fd < NOFILE; fd++){
-    if(p->ofile[fd]){
-      struct file *f = p->ofile[fd];
-      fileclose(f);
-      p->ofile[fd] = 0;
-    }
-  }
+  closeFile(p);
 
   begin_op();
   iput(p->cwd);
@@ -485,10 +502,19 @@ exit(int status)
   // Parent might be sleeping in wait().
   wakeup(p->parent);
   
-  acquire(&p->lock);
+  t_node* node_ptr_to_free;
+  t_node* new_node_ptr=(t_node*)knmalloc(sizeof(t_node));
 
-  p->xstate = status;
-  p->state = ZOMBIE;
+  new_node_ptr->process         = *p;  
+  new_node_ptr->process.xstate  = status;
+  new_node_ptr->process.state   = ZOMBIE;
+  
+  if(list_update_rcu(&process_list, new_node_ptr, p, &rcu_writers_lock, &node_ptr_to_free) == 0){
+        panic("[LOG reparent] proc disappeared");
+  }
+  synchronize_rcu(); // funziona? boh
+  freeproc(&(node_ptr_to_free->process));
+  knfree(node_ptr_to_free);
 
   release(&wait_lock);
 
