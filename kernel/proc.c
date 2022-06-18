@@ -749,19 +749,28 @@ int
 kill(int pid)
 {
   struct proc *p;
+  t_node* tmp_node_ptr;
 
-  for(p = proc; p < &proc[NPROC]; p++){
-    acquire(&p->lock);
-    if(p->pid == pid){
-      p->killed = 1;
-      if(p->state == SLEEPING){
-        // Wake process from sleep().
-        p->state = RUNNABLE;
+  for_each_node(tmp_node_ptr){
+    if(tmp_node_ptr->process.pid == pid){
+      // update dello stato 
+      t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
+      t_node* ptr_node_to_free;
+
+      new_node_ptr->process = tmp_node_ptr->process;
+      new_node_ptr->process.killed = 1;
+
+      if(tmp_node_ptr->process.state == SLEEPING){
+        //Se sta dormendo sveglialo
+        new_node_ptr->process.state = RUNNABLE;
       }
-      release(&p->lock);
+
+      list_update_rcu(&process_list, new_node_ptr, &(tmp_node_ptr->process), &rcu_writers_lock, &ptr_node_to_free);
+      synchronize_rcu(); // funziona? boh
+      freeproc(&(ptr_node_to_free->process));
+      knfree(ptr_node_to_free);
       return 0;
     }
-    release(&p->lock);
   }
   return -1;
 }
