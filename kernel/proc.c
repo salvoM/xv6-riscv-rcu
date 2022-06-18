@@ -723,14 +723,21 @@ void
 wakeup(void *chan)
 {
   struct proc *p;
+  t_node* tmp_node_ptr;
+  for_each_node(tmp_node_ptr){
+    if(&(tmp_node_ptr->process) != myproc() && tmp_node_ptr->process.state == SLEEPING && tmp_node_ptr->process.chan == chan){
+      // update dello stato 
+      t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
+      t_node* ptr_node_to_free;
 
-  for(p = proc; p < &proc[NPROC]; p++) {
-    if(p != myproc()){
-      acquire(&p->lock);
-      if(p->state == SLEEPING && p->chan == chan) {
-        p->state = RUNNABLE;
-      }
-      release(&p->lock);
+      new_node_ptr->process = tmp_node_ptr->process;
+      new_node_ptr->process.state = RUNNABLE;
+
+      list_update_rcu(&process_list, new_node_ptr, &(tmp_node_ptr->process), &rcu_writers_lock, &ptr_node_to_free);
+      synchronize_rcu(); // funziona? boh
+      freeproc(&(ptr_node_to_free->process));
+      knfree(ptr_node_to_free);
+
     }
   }
 }
