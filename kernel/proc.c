@@ -532,32 +532,50 @@ wait(uint64 addr)
   int havekids, pid;
   struct proc *p = myproc();
 
-  acquire(&wait_lock);
+  t_node* ptr_index_node;
+  acquire(&wait_lock);  // Non mi piace che ci sia un lock qui, blocca la lettura della lista
+
+  // Search through the list for children that are in ZOMBIE state
+  // if any, copy data to the parent (xstate)
+  // If there are children that are not in ZOMBIE, sleep!
 
   for(;;){
-    // Scan through table looking for exited children.
     havekids = 0;
-    for(np = proc; np < &proc[NPROC]; np++){
-      if(np->parent == p){
-        // make sure the child isn't still in exit() or swtch().
-        acquire(&np->lock);
-
+    for_each_node(ptr_index_node){
+      if(ptr_index_node->process.parent == p){
         havekids = 1;
-        if(np->state == ZOMBIE){
-          // Found one.
+        if(ptr_index_node->process.state == ZOMBIE){
+          // We need to update the parent
+          // and remove this child
           pid = np->pid;
+
+          //update the parent
+          t_node* ptr_new_node = (t_node*)knmalloc(sizeof(t_node));
+          t_node* ptr_node_to_free;
+          ptr_new_node->process = *p;
+          ptr_new_node->next    = 0; 
+
           if(addr != 0 && copyout(p->pagetable, addr, (char *)&np->xstate,
                                   sizeof(np->xstate)) < 0) {
-            release(&np->lock);
+            /* if something went wrong */
+            knfree(ptr_new_node);
             release(&wait_lock);
             return -1;
           }
-          freeproc(np);
-          release(&np->lock);
-          release(&wait_lock);
+          // Update of the parent // Is it necessary?
+          list_update_rcu(&process_list, ptr_new_node, p, &rcu_writers_lock, &ptr_node_to_free);
+          synchronize_rcu(); // funziona? boh
+          freeproc(&(ptr_node_to_free->process));
+          knfree(ptr_node_to_free);
+
+          // Delete the zombie child from the list and reclaim it
+          list_del_rcu(&process_list, ptr_index_node, &rcu_writers_lock);
+          synchronize_rcu(); // funziona? boh
+          freeproc(&(ptr_index_node->process));
+          knfree(ptr_index_node);
+
           return pid;
         }
-        release(&np->lock);
       }
     }
 
@@ -566,7 +584,7 @@ wait(uint64 addr)
       release(&wait_lock);
       return -1;
     }
-    
+
     // Wait for a child to exit.
     sleep(p, &wait_lock);  //DOC: wait-sleep
   }
