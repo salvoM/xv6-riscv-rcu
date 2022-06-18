@@ -133,9 +133,9 @@ allocproc(void)
   for(n=0;n<NPROC;n++){
     if(bitmap[n]==0){
       bitmap[n]=1;
-      tmp_node_ptr->process.nKStack=n;
-      initlock(&tmp_node_ptr->process.lock, "proc");
-      tmp_node_ptr->process.kstack=KSTACK((int) (n));
+      tmp_proc_ptr->nKStack=n;
+      initlock(&(tmp_proc_ptr->lock), "proc");
+      tmp_proc_ptr->kstack=KSTACK((int) (n));
       found=1;
       break;
     }
