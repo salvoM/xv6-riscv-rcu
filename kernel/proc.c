@@ -636,7 +636,6 @@ scheduler(void)
 
       }
     }
-  }
 }
 
 // Switch to scheduler.  Must hold only p->lock
