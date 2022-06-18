@@ -821,15 +821,15 @@ procdump(void)
   struct proc *p;
   char *state;
 
-  printf("\n");
-  for(p = proc; p < &proc[NPROC]; p++){
-    if(p->state == UNUSED)
-      continue;
-    if(p->state >= 0 && p->state < NELEM(states) && states[p->state])
-      state = states[p->state];
+  t_node* tmp_node_ptr;
+
+  for_each_node(tmp_node_ptr){
+    if(tmp_node_ptr->process.state >= 0 && tmp_node_ptr->process.state < NELEM(states) && states[tmp_node_ptr->process.state])
+          state = states[tmp_node_ptr->process.state];
     else
-      state = "???";
-    printf("%d %s %s", p->pid, state, p->name);
+          state = "???";
+    printf("%d %s %s", tmp_node_ptr->process.pid, state, tmp_node_ptr->process.name);
     printf("\n");
   }
+
 }
