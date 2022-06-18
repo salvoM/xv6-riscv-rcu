@@ -608,21 +608,33 @@ scheduler(void)
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
 
-    for(p = proc; p < &proc[NPROC]; p++) {
-      acquire(&p->lock);
-      if(p->state == RUNNABLE) {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        p->state = RUNNING;
-        c->proc = p;
+    t_node* tmp_node_ptr;
+
+    for_each_node(tmp_node_ptr){
+      if(tmp_node_ptr->process.state == RUNNABLE){
+        // Update dello stato a running
+        t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
+        t_node* ptr_node_to_free;
+
+        new_node_ptr->process = tmp_node_ptr->process;
+        new_node_ptr->process.state = RUNNING;
+
+        list_update_rcu(&process_list, new_node_ptr, &(tmp_node_ptr->process), &rcu_writers_lock, &ptr_node_to_free);
+
+        synchronize_rcu(); // funziona? boh
+        freeproc(&(ptr_node_to_free->process));
+        knfree(ptr_node_to_free);  
+        
+        // Scheduler operation
+        c->proc = p;    
+
         swtch(&c->context, &p->context);
 
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         c->proc = 0;
+
       }
-      release(&p->lock);
     }
   }
 }
