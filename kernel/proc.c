@@ -408,6 +408,7 @@ reparent(struct proc *p)
       t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
       
       new_node_ptr->process = tmp_node_ptr->process;
+      //! rcu_read_unlock(); //lo sposteri qui
       new_node_ptr->process.parent = initproc;
       
       list_update_rcu(&process_list, new_node_ptr, p, &rcu_writers_lock, &ptr_node_to_free);
@@ -419,10 +420,11 @@ reparent(struct proc *p)
       
       wakeup(initproc); // Boh?
     }
+    //! else rcu_read_unlock();
     rcu_read_lock();
   }
 
-    rcu_read_unlock();
+  rcu_read_unlock();
 
 }
 
@@ -595,6 +597,7 @@ scheduler(void)
         t_node* ptr_node_to_free;
 
         new_node_ptr->process = tmp_node_ptr->process;
+        //! rcu_read_unlock lo metterei qui
         new_node_ptr->process.state = RUNNING;
 
         list_update_rcu(&process_list, new_node_ptr, &(tmp_node_ptr->process), &rcu_writers_lock, &ptr_node_to_free);
@@ -604,15 +607,18 @@ scheduler(void)
         knfree(ptr_node_to_free);  
         
         // Scheduler operation
-        c->proc = p;    
+        c->proc = &(new_node_ptr->process);    
 
-        swtch(&c->context, &p->context);
+        swtch(&c->context, &(new_node_ptr->process.context));
 
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         c->proc = 0;
 
       }
+      /*
+      !else rcu_read_lock();
+       */
 
       rcu_read_lock();
     }
@@ -730,6 +736,7 @@ wakeup(void *chan)
       t_node* ptr_node_to_free;
 
       new_node_ptr->process = tmp_node_ptr->process;
+      //! rcu_read_unlock(); //lo sposteri qui
       new_node_ptr->process.state = RUNNABLE;
 
       list_update_rcu(&process_list, new_node_ptr, &(tmp_node_ptr->process), &rcu_writers_lock, &ptr_node_to_free);
@@ -739,6 +746,7 @@ wakeup(void *chan)
       knfree(ptr_node_to_free);
 
     }
+    //!else rcu_read_unlock();
 
     rcu_read_lock();
   }
@@ -767,9 +775,10 @@ kill(int pid)
       t_node* ptr_node_to_free;
 
       new_node_ptr->process = tmp_node_ptr->process;
+      //! rcu_read_unlock(); //lo sposteri qui
       new_node_ptr->process.killed = 1;
 
-      if(tmp_node_ptr->process.state == SLEEPING){
+      if(new_node_ptr->process.state == SLEEPING){
         //Se sta dormendo sveglialo
         new_node_ptr->process.state = RUNNABLE;
       }
@@ -780,6 +789,8 @@ kill(int pid)
       knfree(ptr_node_to_free);
       return 0;
     }
+    //! else rcu_read_unlock(); //lo sposteri qui
+
 
     rcu_read_lock();
   }
@@ -850,6 +861,8 @@ procdump(void)
     printf("\n");
 
     rcu_read_lock();
+    //!rcu_read_unlock();
+    //!rcu_read_lock();
   }
 
   rcu_read_unlock();
