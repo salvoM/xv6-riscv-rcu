@@ -1,7 +1,1 @@
-Spostare list_add_rcu fuori da allocproc in modo da poterla utilizzare.
-Viene usata in
- - fork
- - userinit
-
-Così finiamo le modifiche al processo e poi usiamo list_add_rcu (in fork e userinit)
-per aggiungere il proc alla lista
+- Ottimizzare la list_update con quel trick di list_entry
