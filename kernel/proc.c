@@ -70,7 +70,7 @@ procinit(void)
   
   initlock(&pid_lock, "nextpid");
   initlock(&wait_lock, "wait_lock");
-  initlock(&rcu_writers_lock, "rcu_writers_lock");
+  // initlock(&rcu_writers_lock, "rcu_writers_lock"); it is inside init_list
   init_list(&process_list, &rcu_writers_lock);
 
 }
