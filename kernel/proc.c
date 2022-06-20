@@ -273,7 +273,6 @@ userinit(void)
   // Fine modifiche al processo
 
   //Creo il nodo 
-  struct proc* tmp_proc_ptr;
   t_node* tmp_node_ptr = (t_node*)knmalloc(sizeof(t_node));
 
   //Riempio il nodo
@@ -372,7 +371,6 @@ fork(void)
   // Fine modifiche al processo
 
   //Creo il nodo 
-  struct proc* tmp_proc_ptr;
   t_node* tmp_node_ptr = (t_node*)knmalloc(sizeof(t_node));
 
   //Riempio il nodo
@@ -393,7 +391,6 @@ fork(void)
 void
 reparent(struct proc *p)
 {
-  struct proc *pp;
   t_node* tmp_node_ptr;
   t_node* ptr_node_to_free;
   
@@ -503,7 +500,7 @@ exit(int status)
 int
 wait(uint64 addr)
 {
-  struct proc *np;
+
   int havekids, pid;
   struct proc *p = myproc();
 
@@ -522,7 +519,7 @@ wait(uint64 addr)
         if(ptr_index_node->process.state == ZOMBIE){
           // We need to update the parent
           // and remove this child
-          pid = np->pid;
+          pid = ptr_index_node->process.pid;
 
           //update the parent
           t_node* ptr_new_node = (t_node*)knmalloc(sizeof(t_node));
@@ -530,8 +527,8 @@ wait(uint64 addr)
           ptr_new_node->process = *p;
           ptr_new_node->next    = 0; 
 
-          if(addr != 0 && copyout(p->pagetable, addr, (char *)&np->xstate,
-                                  sizeof(np->xstate)) < 0) {
+          if(addr != 0 && copyout(p->pagetable, addr, (char *)&(ptr_index_node->process.xstate),
+                                  sizeof(ptr_index_node->process.xstate)) < 0) {
             /* if something went wrong */
             knfree(ptr_new_node);
             release(&wait_lock);
@@ -575,7 +572,7 @@ wait(uint64 addr)
 void
 scheduler(void)
 {
-  struct proc *p;
+  
   struct cpu *c = mycpu();
   
   c->proc = 0;
@@ -723,7 +720,6 @@ sleep(void *chan, struct spinlock *lk)
 void
 wakeup(void *chan)
 {
-  struct proc *p;
   t_node* tmp_node_ptr;
 
   rcu_read_lock();
@@ -759,7 +755,6 @@ wakeup(void *chan)
 int
 kill(int pid)
 {
-  struct proc *p;
   t_node* tmp_node_ptr;
 
   rcu_read_lock();
@@ -841,7 +836,7 @@ procdump(void)
   [RUNNING]   "run   ",
   [ZOMBIE]    "zombie"
   };
-  struct proc *p;
+  
   char *state;
 
   t_node* tmp_node_ptr;
