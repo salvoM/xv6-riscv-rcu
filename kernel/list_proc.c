@@ -168,7 +168,7 @@ void list_del_rcu(t_list* list_ptr, t_node* node_ptr, struct spinlock* writers_l
 
 int list_update_rcu(t_list* list_ptr, t_node* new_node_ptr, struct proc* proc_ptr, struct spinlock* writers_lock_ptr, t_node** ptr_to_free ){
     int found = 0;
-    acquire(&writers_lock_ptr);
+    acquire(writers_lock_ptr);
     rcu_read_lock();
     t_node* current_node_ptr = rcu_dereference_pointer(*list_ptr);
 
@@ -205,13 +205,13 @@ int list_update_rcu(t_list* list_ptr, t_node* new_node_ptr, struct proc* proc_pt
     }
 
     rcu_read_unlock();
-    release(&writers_lock_ptr);
+    release(writers_lock_ptr);
     return found;
 }
 
 int list_del_from_proc_rcu(t_list* list_ptr, struct proc* proc_ptr, struct spinlock* writers_lock_ptr, t_node** ptr_to_free){
     int found = 0;
-    acquire(&writers_lock_ptr);
+    acquire(writers_lock_ptr);
     rcu_read_lock();
     t_node* current_node_ptr = rcu_dereference_pointer(*list_ptr);
 
@@ -246,7 +246,7 @@ int list_del_from_proc_rcu(t_list* list_ptr, struct proc* proc_ptr, struct spinl
     }
 
     rcu_read_unlock();
-    release(&writers_lock_ptr);
+    release(writers_lock_ptr);
     return found;
 }
 

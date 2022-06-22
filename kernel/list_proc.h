@@ -1,13 +1,13 @@
 /*
     Work in progress
 */
-#include "types.h"
-#include "param.h"
-#include "memlayout.h"
-#include "spinlock.h"
-#include "riscv.h"
-#include "defs.h"
-#include "proc.h"
+// #include "types.h"
+// #include "param.h"
+// #include "memlayout.h"
+// #include "riscv.h"
+// #include "spinlock.h"
+// #include "proc.h"
+// #include "defs.h"
 
 
 typedef struct s_node{
@@ -15,7 +15,8 @@ typedef struct s_node{
     struct s_node* next;
 }t_node;
 
-typedef struct t_node* t_list;
+// typedef struct t_node* t_list;
+typedef struct s_node* t_list;
 
 
 void rcu_read_lock();
