@@ -614,10 +614,7 @@ scheduler(void)
 
       }
       else rcu_read_unlock();
-      /*
-      !else rcu_read_lock();
-       */
-
+  
       rcu_read_lock();
     }
 
