@@ -183,7 +183,9 @@ int list_update_rcu(t_list* list_ptr, t_node* new_node_ptr, struct proc* proc_pt
         release(writers_lock_ptr);
         return 1;
     }
-
+    if(current_node_ptr == 0){
+        printf("SIAMO PROPRIO SCEMI");
+    }
     t_node* prev_node_ptr = current_node_ptr;
     current_node_ptr = current_node_ptr->next;
 

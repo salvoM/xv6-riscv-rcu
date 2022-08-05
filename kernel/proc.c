@@ -309,6 +309,7 @@ growproc(int n)
     sz = uvmdealloc(new_node_ptr->process.pagetable, sz, sz + n);
   }
   new_node_ptr->process.sz = sz;
+  printf("[LOG LIST_UPDATE:RCU] Called from growproc");
   if(list_update_rcu(&process_list, new_node_ptr, tmp_proc_ptr, &rcu_writers_lock, &node_ptr_to_free) == 0){
     panic("proc disappeared");
   }
@@ -397,7 +398,7 @@ reparent(struct proc *p)
   tmp_node_ptr = list_entry_for_process(p, t_node, process);
 
   rcu_read_lock();
-  for_each_node(tmp_node_ptr){
+  for (tmp_node_ptr = process_list ; tmp_node_ptr != 0; tmp_node_ptr = tmp_node_ptr->next){
     
     
     if(tmp_node_ptr->process.parent == p){
@@ -409,6 +410,8 @@ reparent(struct proc *p)
       
       new_node_ptr->process.parent = initproc;
       
+      
+      printf("[LOG LIST_UPDATE:RCU] Called from reparent\n");
       list_update_rcu(&process_list, new_node_ptr, p, &rcu_writers_lock, &ptr_node_to_free);
       
       synchronize_rcu(); // funziona? boh
@@ -439,6 +442,7 @@ void closeFile(struct proc* p){
       new_node_ptr->process.ofile[fd] = 0;
     }
   }
+  printf("[LOG LIST_UPDATE:RCU] Called from closefile\n");
   if(list_update_rcu(&process_list, new_node_ptr, p, &rcu_writers_lock, &node_ptr_to_free) == 0){
         panic("[LOG closeFile] proc disappeared");
   }
@@ -481,6 +485,7 @@ exit(int status)
   new_node_ptr->process.xstate  = status;
   new_node_ptr->process.state   = ZOMBIE;
   
+  printf("[LOG LIST_UPDATE:RCU] Called from exit\n");
   if(list_update_rcu(&process_list, new_node_ptr, p, &rcu_writers_lock, &node_ptr_to_free) == 0){
         panic("[LOG reparent] proc disappeared");
   }
@@ -535,6 +540,7 @@ wait(uint64 addr)
             return -1;
           }
           // Update of the parent // Is it necessary?
+          printf("[LOG LIST_UPDATE:RCU] Called from wait\n");
           list_update_rcu(&process_list, ptr_new_node, p, &rcu_writers_lock, &ptr_node_to_free);
           synchronize_rcu(); // funziona? boh
           freeproc(&(ptr_node_to_free->process));
@@ -576,6 +582,7 @@ scheduler(void)
   struct cpu *c = mycpu();
   
   c->proc = 0;
+  printf("[LOG SCHEDULER] inside scheduler()\n");
   for(;;){
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
@@ -585,8 +592,9 @@ scheduler(void)
     // Is it ok with intr_on()?
     rcu_read_lock();
 
-    for_each_node(tmp_node_ptr){
-
+    for (tmp_node_ptr = process_list ; tmp_node_ptr != 0; tmp_node_ptr = tmp_node_ptr->next)
+    {
+      printf("[LOG SCHEDULER] process state = %d\n",tmp_node_ptr->process.state );
       if(tmp_node_ptr->process.state == RUNNABLE){
         // Update dello stato a running
         t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
@@ -596,7 +604,12 @@ scheduler(void)
         rcu_read_unlock(); // lo metterei qui
         
         new_node_ptr->process.state = RUNNING;
+      
 
+        printf("[LOG LIST_UPDATE:RCU] Called from scheduler\n");
+        printf("[LOG LIST_UPDATE:RCU] (%p,%p,%p,%p,%p)",
+        &process_list, new_node_ptr, &(tmp_node_ptr->process), &rcu_writers_lock, &ptr_node_to_free);
+        
         list_update_rcu(&process_list, new_node_ptr, &(tmp_node_ptr->process), &rcu_writers_lock, &ptr_node_to_free);
 
         synchronize_rcu(); // funziona? boh
@@ -720,7 +733,7 @@ wakeup(void *chan)
   t_node* tmp_node_ptr;
 
   rcu_read_lock();
-  for_each_node(tmp_node_ptr){
+  for (tmp_node_ptr = process_list ; tmp_node_ptr != 0; tmp_node_ptr = tmp_node_ptr->next){
 
     if(&(tmp_node_ptr->process) != myproc() && tmp_node_ptr->process.state == SLEEPING && tmp_node_ptr->process.chan == chan){
       // update dello stato 
@@ -731,6 +744,7 @@ wakeup(void *chan)
       rcu_read_unlock(); //lo sposteri qui
       new_node_ptr->process.state = RUNNABLE;
 
+      printf("[LOG LIST_UPDATE:RCU] Called from wakeup\n");
       list_update_rcu(&process_list, new_node_ptr, &(tmp_node_ptr->process), &rcu_writers_lock, &ptr_node_to_free);
       
       synchronize_rcu(); // funziona? boh
@@ -755,7 +769,7 @@ kill(int pid)
   t_node* tmp_node_ptr;
 
   rcu_read_lock();
-  for_each_node(tmp_node_ptr){
+  for (tmp_node_ptr = process_list ; tmp_node_ptr != 0; tmp_node_ptr = tmp_node_ptr->next){
 
     if(tmp_node_ptr->process.pid == pid){
       // update dello stato 
@@ -773,6 +787,7 @@ kill(int pid)
         new_node_ptr->process.state = RUNNABLE;
       }
 
+      printf("[LOG LIST_UPDATE:RCU] Called from kill\n");
       list_update_rcu(&process_list, new_node_ptr, &(tmp_node_ptr->process), &rcu_writers_lock, &ptr_node_to_free);
       synchronize_rcu(); // funziona? boh
       freeproc(&(ptr_node_to_free->process));
@@ -839,7 +854,7 @@ procdump(void)
   t_node* tmp_node_ptr;
 
   rcu_read_lock();
-  for_each_node(tmp_node_ptr){
+  for (tmp_node_ptr = process_list ; tmp_node_ptr != 0; tmp_node_ptr = tmp_node_ptr->next){
 
     if(tmp_node_ptr->process.state >= 0 && tmp_node_ptr->process.state < NELEM(states) && states[tmp_node_ptr->process.state])
           state = states[tmp_node_ptr->process.state];
