@@ -60,7 +60,7 @@ get the name of the session
     ```
 3. Connect to interactively to it using:
     ```sh
-    sudo docker exec -ti <instance_name>
+    sudo docker exec -ti <instance_name> bash
     ```
     Inside the container run gdb with:
     ```sh
@@ -72,3 +72,17 @@ get the name of the session
     (gdb) target remote localhost:25000
     ```
 
+## How to execute with only 1 CPU
+In the main folder of xv6 edit the Makefile:
+ 
+```make
+ifndef CPUS
+CPUS := 3
+endif
+```
+to the intuitive 
+```make
+ifndef CPUS
+CPUS := 1
+endif
+```
