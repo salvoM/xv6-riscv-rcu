@@ -38,28 +38,28 @@ void synchronize_rcu(){
     as required. 
     */
 
-    int cpu_0 = 1;
-    int cpu_1 = 1;
-    int cpu_2 = 1;
-    int id = -1;
-    while(1){
-        push_off();
-        id = cpuid();
-        pop_off();
-        if( cpu_0 && id == 0){
-            cpu_0--;
-        }
-        if( cpu_1 && id == 1){
-            cpu_1--;
-        }
-        if( cpu_2 && id == 2){
-            cpu_2--;
-        }
-        __sync_synchronize();
-        if( cpu_0 == 0 && cpu_1 == 0 && cpu_2 == 0){
-            return;
-        }
-    }
+    // int cpu_0 = 1;
+    // int cpu_1 = 1;
+    // int cpu_2 = 1;
+    // int id = -1;
+    // while(1){
+    //     push_off();
+    //     id = cpuid();
+    //     pop_off();
+    //     if( cpu_0 && id == 0){
+    //         cpu_0--;
+    //     }
+    //     if( cpu_1 && id == 1){
+    //         cpu_1--;
+    //     }
+    //     if( cpu_2 && id == 2){
+    //         cpu_2--;
+    //     }
+    //     __sync_synchronize();
+    //     if( cpu_0 == 0 && cpu_1 == 0 && cpu_2 == 0){
+    //         return;
+    //     }
+    // }
 }
 
 void rcu_assign_pointer(t_list* list_ptr_dst, t_node* node_ptr_src){

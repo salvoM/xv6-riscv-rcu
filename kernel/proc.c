@@ -596,7 +596,17 @@ scheduler(void)
     {
       printf("[LOG SCHEDULER] process state = %d\n",tmp_node_ptr->process.state );
       if(tmp_node_ptr->process.state == RUNNABLE){
+
         // Update dello stato a running
+        if(tmp_node_ptr->process.pid==1){
+          acquire(&tmp_node_ptr->process.lock); 
+          tmp_node_ptr->process.state = RUNNING;
+          c->proc=&(tmp_node_ptr->process);
+          swtch(&c->context, &(tmp_node_ptr->process.context));
+          c->proc = 0;
+          release(&tmp_node_ptr->process.lock);
+          break;
+        }
         t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
         t_node* ptr_node_to_free;
 
@@ -607,7 +617,7 @@ scheduler(void)
       
 
         printf("[LOG LIST_UPDATE:RCU] Called from scheduler\n");
-        printf("[LOG LIST_UPDATE:RCU] (%p,%p,%p,%p,%p)",
+        printf("[LOG LIST_UPDATE:RCU] (%p,%p,%p,%p,%p)\n",
         &process_list, new_node_ptr, &(tmp_node_ptr->process), &rcu_writers_lock, &ptr_node_to_free);
         
         list_update_rcu(&process_list, new_node_ptr, &(tmp_node_ptr->process), &rcu_writers_lock, &ptr_node_to_free);
@@ -620,18 +630,25 @@ scheduler(void)
         c->proc = &(new_node_ptr->process);    
 
         swtch(&c->context, &(new_node_ptr->process.context));
-
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         c->proc = 0;
+        
+
 
       }
-      else rcu_read_unlock();
+      else 
+      {
+        rcu_read_unlock();
+        release(&tmp_node_ptr->process.lock);
+      }
   
       rcu_read_lock();
     }
 
     rcu_read_unlock();
+
+
   }
 }
 
