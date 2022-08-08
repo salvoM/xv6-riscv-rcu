@@ -177,8 +177,8 @@ int list_update_rcu(t_list* list_ptr, t_node* new_node_ptr, struct proc* proc_pt
         new_node_ptr->next = current_node_ptr->next;
         
         *ptr_to_free = current_node_ptr;
-        
-        rcu_assign_pointer(list_ptr, current_node_ptr->next); // va fatta atomicamente
+
+        rcu_assign_pointer(list_ptr, new_node_ptr); // va fatta atomicamente
         rcu_read_unlock();
         release(writers_lock_ptr);
         return 1;
