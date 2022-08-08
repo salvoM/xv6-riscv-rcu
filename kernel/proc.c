@@ -169,7 +169,9 @@ allocproc(void)
   /*  RCU add to list*/
   // list_add_rcu(&process_list,tmp_node_ptr,&rcu_writers_lock);
   /*  RCU add to list*/
-  
+  for(int i = 0; i < NOFILE; i++)
+    tmp_proc_ptr->ofile[i] = 0;
+  tmp_proc_ptr->killed = 0;
   return tmp_proc_ptr; // ?
 }
 
