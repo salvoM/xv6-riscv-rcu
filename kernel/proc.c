@@ -669,15 +669,26 @@ sched(void)
   int intena;
   struct proc *p = myproc();
 
-  if(!holding(&p->lock))
-    panic("sched p->lock");
-  if(mycpu()->noff != 1)
-    panic("sched locks");
-  if(p->state == RUNNING)
-    panic("sched running");
+  if(!holding(&p->lock)){
+    printf("[LOG SCHED] Disabled panic(\"sched p->lock\")\n");
+    print_proc(*p);
+    // panic("sched p->lock");
+  }
+  if(mycpu()->noff != 1){
+    printf("[LOG SCHED] Disabled panic(\"sched locks\")\n\
+            mycpu()->noff = %d\n",mycpu()->noff);
+    // panic("sched locks");
+  }
+  if(p->state == RUNNING){
+    printf("[LOG SCHED] Disabled panic(\"sched running\")\n");
+    // panic("sched running");
+    
+  }
   if(intr_get())
     panic("sched interruptible");
 
+  printf("process_list = %p\n", process_list);
+  print_list(process_list);
   intena = mycpu()->intena;
   swtch(&p->context, &mycpu()->context);
   mycpu()->intena = intena;
