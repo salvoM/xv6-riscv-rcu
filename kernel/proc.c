@@ -181,6 +181,8 @@ allocproc(void)
 static void
 freeproc(struct proc *p)
 {
+  printf("[LOG FREEPROC] proc @ %p\n", p);
+  print_proc(*p);
 
   if(p->trapframe)
     kfree((void*)p->trapframe);
