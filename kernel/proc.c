@@ -887,3 +887,26 @@ procdump(void)
   rcu_read_unlock();
 
 }
+
+void print_proc(struct proc p){
+  static char *states[] = {
+  [UNUSED]    "unused",
+  [SLEEPING]  "sleep ",
+  [RUNNABLE]  "runnable",
+  [RUNNING]   "running",
+  [ZOMBIE]    "zombie"
+  };
+  printf("\nproc @%p = { \n\
+          name      = %s\n\
+          state     = %s\n\
+          chan      = %p\n\
+          killed    = %d\n\
+          nKStack   = %d\n\
+          pid       = %d\n\
+          kstack    = %p\n\
+          sz        = %d\n\
+          pagetable = %p\n\
+          }\n\n",
+        &p, p.name, states[p.state], p.chan,p.killed,p.nKStack,
+        p.pid, p.kstack, p.sz, p.pagetable);
+  }
