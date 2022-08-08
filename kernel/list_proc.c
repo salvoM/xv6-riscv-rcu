@@ -268,6 +268,19 @@ int is_empty(t_list list){
     return 0;
 }
 
+void print_list(t_list list){
+    int count = 0;
+    printf("[PROCESS LIST] Start\n");
+    while(!is_empty(list)){
+        printf("%d)\t", count);
+        print_proc(list->process);
+        count++;
+        list = list->next;
+    }
+    printf("[PROCESS LIST] End\n");
+
+}
+
 // void insert_at_head(struct proc p, t_list* list_ptr){        
     //    Creating the node
     //     t_node* node_ptr = (t_node*)knmalloc(sizeof(t_node));
