@@ -740,21 +740,87 @@ sleep(void *chan, struct spinlock *lk)
   // (wakeup locks p->lock),
   // so it's okay to release lk.
 
-  acquire(&p->lock);  //DOC: sleeplock1
+  // acquire(&p->lock);  //DOC: sleeplock1
   release(lk);
 
   // Go to sleep.
-  p->chan = chan;
-  p->state = SLEEPING;
+  // p->chan = chan;
+  // p->state = SLEEPING;
+
+  /**/
+  printf("[LOG SLEEP] Process list\n");
+  print_list(process_list);
+  printf("[LOG SLEEP] mycpu()->proc\n");
+  print_proc(*p);
+
+  t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
+  t_node* ptr_node_to_free;
+
+  new_node_ptr->process = *p;
+  new_node_ptr->process.chan  = chan;
+  new_node_ptr->process.state = SLEEPING;
+  
+  if(list_update_rcu(&process_list, new_node_ptr, p,
+                  &rcu_writers_lock, &ptr_node_to_free) == 0)
+  {
+    printf("[LOG SLEEP] List_update_rcu failed\n");
+  }
+  else
+  {
+    printf("[LOG SLEEP] After List_update_rcu\n");
+    print_list(process_list);
+  }
+
+  synchronize_rcu(); // funziona? boh
+  // freeproc(&(ptr_node_to_free->process)); 
+
+  // mycpu()->proc = &(new_node_ptr->process);
+  // printf("[LOG SLEEP] Now running this\n");
+  // print_proc(*(mycpu()->proc));
+  
+
+  /* Perchè ho commentato knfree
+  Perchè la freeproc fa una knfree di &(ptr_node_to_free->process)
+  che corrisponde a ptr_node_to_free, per come è fatta la struttura
+  quindi avrei una doppia free allo stesso indirizzo.
+  */
+  knfree(ptr_node_to_free);  
+
+  /**/
+  printf("[LOG SLEEP] Calling sched()\n");
 
   sched();
 
   // Tidy up.
-  p->chan = 0;
+  // p->chan = 0;
+
+  /**/
+  new_node_ptr     = (t_node*)knmalloc(sizeof(t_node));
+  ptr_node_to_free = 0;
+
+  new_node_ptr->process = *p;
+  new_node_ptr->process.chan  = 0;
+  
+  list_update_rcu(&process_list, new_node_ptr, p,
+                  &rcu_writers_lock, &ptr_node_to_free);
+
+  synchronize_rcu(); // funziona? boh
+  // freeproc(&(ptr_node_to_free->process)); 
+  
+  /* Perchè ho commentato knfree
+  Perchè la freeproc fa una knfree di &(ptr_node_to_free->process)
+  che corrisponde a ptr_node_to_free, per come è fatta la struttura
+  quindi avrei una doppia free allo stesso indirizzo.
+  */
+  knfree(ptr_node_to_free);  
+
+  /**/
+
 
   // Reacquire original lock.
-  release(&p->lock);
+  // release(&p->lock);
   acquire(lk);
+  print_list(process_list);
 }
 
 // Wake up all processes sleeping on chan.
