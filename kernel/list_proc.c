@@ -270,14 +270,14 @@ int is_empty(t_list list){
 
 void print_list(t_list list){
     int count = 0;
-    printf("[PROCESS LIST] Start\n");
+    printf("[PROCESS LIST *Start] \n");
     while(!is_empty(list)){
         printf("%d)\t", count);
-        print_proc(list->process);
+        print_proc(&(list->process));
         count++;
         list = list->next;
     }
-    printf("[PROCESS LIST] End\n");
+    printf("[PROCESS LIST *End] \n");
 
 }
 
