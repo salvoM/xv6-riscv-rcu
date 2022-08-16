@@ -549,7 +549,13 @@ wait(uint64 addr)
           }
           // Update of the parent // Is it necessary?
           printf("[LOG LIST_UPDATE:RCU] Called from wait\n");
-          list_update_rcu(&process_list, ptr_new_node, p, &rcu_writers_lock, &ptr_node_to_free);
+          int t = list_update_rcu(&process_list, ptr_new_node, p, &rcu_writers_lock, &ptr_node_to_free);
+          // if(t == 0){
+          //   panic("[WAIT] list_update_rcu failed\n");
+          // }
+          // else{
+          //   mycpu()->proc = &(ptr_new_node->process);
+          // }
           synchronize_rcu(); // funziona? boh
           // freeproc(&(ptr_node_to_free->process));
           knfree(ptr_node_to_free);
@@ -608,10 +614,23 @@ scheduler(void)
         print_proc(tmp_node_ptr->process);
         // Update dello stato a running
         if(tmp_node_ptr->process.pid==1){
-          //acquire(&tmp_node_ptr->process.lock); 
-          tmp_node_ptr->process.state = RUNNING;
-          c->proc=&(tmp_node_ptr->process);
-          swtch(&c->context, &(tmp_node_ptr->process.context));
+          // acquire(&tmp_node_ptr->process.lock);
+
+          new_node_ptr                = (t_node*)knmalloc(sizeof(t_node));
+          new_node_ptr->process       = tmp_node_ptr->process;
+          new_node_ptr->process.state = RUNNING;
+
+          int found = list_update_rcu(&process_list, new_node_ptr,&(tmp_node_ptr->process), &rcu_writers_lock, &ptr_node_to_free);
+          if(found != 0) {
+            printf("[LOG SCHEDULER] list_update_rcu succeded: \n");
+            knfree(ptr_node_to_free);  
+          }
+          else{
+            panic("[LOG SCHEDULER] list_update_rcu failed \n");
+          }
+          // tmp_node_ptr->process.state = RUNNING;
+          c->proc=&(new_node_ptr->process);
+          swtch(&c->context, &(new_node_ptr->process.context));
           c->proc = 0;
           c->intena = 0;
           //release(&tmp_node_ptr->process.lock);
@@ -697,8 +716,10 @@ sched(void)
     // panic("sched running");
     
   }
-  if(intr_get())
-    panic("sched interruptible");
+  if(intr_get()){
+    printf("[LOG SCHED] Disabled panic(\"sched interruptible\")\n");
+    // panic("sched interruptible");
+  }
 
   printf("process_list = %p\n", process_list);
   print_list(process_list);
@@ -816,6 +837,10 @@ sleep(void *chan, struct spinlock *lk)
   
   list_update_rcu(&process_list, new_node_ptr, p,
                   &rcu_writers_lock, &ptr_node_to_free);
+  
+  if(found == 0){
+    panic("[SLEEP] List_update_rcu failed\n");
+  }
 
   synchronize_rcu(); // funziona? boh
   // freeproc(&(ptr_node_to_free->process)); 
