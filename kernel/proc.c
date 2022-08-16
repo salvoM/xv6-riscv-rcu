@@ -502,6 +502,9 @@ exit(int status)
   if(list_update_rcu(&process_list, new_node_ptr, p, &rcu_writers_lock, &node_ptr_to_free) == 0){
         panic("[LOG reparent] proc disappeared");
   }
+  else{
+    mycpu()->proc = &(new_node_ptr->process);
+  }
   synchronize_rcu(); // funziona? boh
   // freeproc(&(node_ptr_to_free->process));
   knfree(node_ptr_to_free);
@@ -821,6 +824,7 @@ sleep(void *chan, struct spinlock *lk)
   else
   {
     printf("[LOG SLEEP] List_update_rcu succeded\n");
+    mycpu()->proc = &(new_node_ptr->process);
     print_list(process_list);
   }
 
@@ -855,14 +859,19 @@ sleep(void *chan, struct spinlock *lk)
   continua da qui! ->
   */
   printf("[LOG SLEEP] chan %p, WOKE UP!\n", chan);
+  p = myproc();
   new_node_ptr     = (t_node*)knmalloc(sizeof(t_node));
   ptr_node_to_free = 0;
 
   new_node_ptr->process = *p;
   new_node_ptr->process.chan  = 0;
   
-  list_update_rcu(&process_list, new_node_ptr, p,
+  int found = list_update_rcu(&process_list, new_node_ptr, p,
                   &rcu_writers_lock, &ptr_node_to_free);
+
+  if(found == 0){
+    panic("[SLEEP] List_update_rcu failed\n");
+  }
 
   synchronize_rcu(); // funziona? boh
   // freeproc(&(ptr_node_to_free->process)); 
@@ -873,6 +882,8 @@ sleep(void *chan, struct spinlock *lk)
   quindi avrei una doppia free allo stesso indirizzo.
   */
   knfree(ptr_node_to_free);  
+
+  mycpu()->proc = &(new_node_ptr->process);
 
   /**/
 
