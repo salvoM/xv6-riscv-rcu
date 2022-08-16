@@ -180,6 +180,7 @@ static void
 freeproc(struct proc *p)
 {
 
+
   if(p->trapframe)
     kfree((void*)p->trapframe);
   if(p->pagetable)
@@ -599,12 +600,13 @@ scheduler(void)
 
         // Update dello stato a running
         if(tmp_node_ptr->process.pid==1){
-          acquire(&tmp_node_ptr->process.lock); 
+          //acquire(&tmp_node_ptr->process.lock); 
           tmp_node_ptr->process.state = RUNNING;
           c->proc=&(tmp_node_ptr->process);
           swtch(&c->context, &(tmp_node_ptr->process.context));
           c->proc = 0;
-          release(&tmp_node_ptr->process.lock);
+          c->intena = 0;
+          //release(&tmp_node_ptr->process.lock);
           break;
         }
         t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
@@ -640,13 +642,13 @@ scheduler(void)
       else 
       {
         rcu_read_unlock();
-        release(&tmp_node_ptr->process.lock);
       }
+      c->intena = 0;
   
       rcu_read_lock();
     }
 
-    rcu_read_unlock();
+    //rcu_read_unlock();
 
 
   }
@@ -665,10 +667,10 @@ sched(void)
   int intena;
   struct proc *p = myproc();
 
-  if(!holding(&p->lock))
-    panic("sched p->lock");
-  if(mycpu()->noff != 1)
-    panic("sched locks");
+  // if(!holding(&p->lock))
+  //   panic("sched p->lock");
+  // if(mycpu()->noff != 1)
+  //   panic("sched locks");
   if(p->state == RUNNING)
     panic("sched running");
   if(intr_get())
@@ -754,6 +756,13 @@ wakeup(void *chan)
 
     if(&(tmp_node_ptr->process) != myproc() && tmp_node_ptr->process.state == SLEEPING && tmp_node_ptr->process.chan == chan){
       // update dello stato 
+      if(tmp_node_ptr->process.pid==1){
+        printf("[LOG WAKEUP]waking up init process\n");
+        //acquire(&tmp_node_ptr->process.lock);
+        tmp_node_ptr->process.state = RUNNABLE;
+        //release(&tmp_node_ptr->process.lock);
+        break;
+      }
       t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
       t_node* ptr_node_to_free;
 
