@@ -622,7 +622,7 @@ scheduler(void)
         print_proc(&(tmp_node_ptr->process));
         // Update dello stato a running
         if(tmp_node_ptr->process.pid==1){
-          // acquire(&tmp_node_ptr->process.lock); 
+          // acquire(&tmp_node_ptr->process.lock);
 
           new_node_ptr                = (t_node*)knmalloc(sizeof(t_node));
           new_node_ptr->process       = tmp_node_ptr->process;
@@ -724,8 +724,10 @@ sched(void)
     // panic("sched running");
     
   }
-  if(intr_get())
-    panic("sched interruptible");
+  if(intr_get()){
+    printf("[LOG SCHED] Disabled panic(\"sched interruptible\")\n");
+    // panic("sched interruptible");
+  }
 
   printf("process_list = %p\n", process_list);
   print_list(process_list);
@@ -874,7 +876,7 @@ sleep(void *chan, struct spinlock *lk)
   
   int found = list_update_rcu(&process_list, new_node_ptr, p,
                   &rcu_writers_lock, &ptr_node_to_free);
-
+  
   if(found == 0){
     panic("[SLEEP] List_update_rcu failed\n");
   }
