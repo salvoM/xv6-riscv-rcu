@@ -21,6 +21,8 @@ initsleeplock(struct sleeplock *lk, char *name)
 void
 acquiresleep(struct sleeplock *lk)
 {
+  printf("[LOG acquiresleep] called with lk %s.\n lk->locked = %d, lk->pid = %d\n", lk->name, lk->locked, lk->pid );
+  printf("[LOG acquiresleep] chan = %p\n", lk);
   acquire(&lk->lk);
   while (lk->locked) {
     sleep(lk, &lk->lk);
@@ -33,6 +35,8 @@ acquiresleep(struct sleeplock *lk)
 void
 releasesleep(struct sleeplock *lk)
 {
+  printf("[LOG releasesleep] called with lk %s.\n lk->locked = %d, lk->pid = %d\n", lk->name, lk->locked, lk->pid );
+  printf("[LOG releasesleep] chan = %p\n", lk);
   acquire(&lk->lk);
   lk->locked = 0;
   lk->pid = 0;
