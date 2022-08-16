@@ -534,7 +534,7 @@ wait(uint64 addr)
 
   for(;;){
     havekids = 0;
-    for_each_node(ptr_index_node){
+    for (ptr_index_node = process_list ; ptr_index_node != 0; ptr_index_node = ptr_index_node->next){
       if(ptr_index_node->process.parent == p){
         havekids = 1;
         if(ptr_index_node->process.state == ZOMBIE){
