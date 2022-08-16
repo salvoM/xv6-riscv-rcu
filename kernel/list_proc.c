@@ -177,8 +177,8 @@ int list_update_rcu(t_list* list_ptr, t_node* new_node_ptr, struct proc* proc_pt
         new_node_ptr->next = current_node_ptr->next;
         
         *ptr_to_free = current_node_ptr;
-        
-        rcu_assign_pointer(list_ptr, current_node_ptr->next); // va fatta atomicamente
+
+        rcu_assign_pointer(list_ptr, new_node_ptr); // va fatta atomicamente
         rcu_read_unlock();
         release(writers_lock_ptr);
         return 1;
@@ -266,6 +266,19 @@ int is_empty(t_list list){
         return 1; // True
     
     return 0;
+}
+
+void print_list(t_list list){
+    int count = 0;
+    printf("[PROCESS LIST] Start\n");
+    while(!is_empty(list)){
+        printf("%d)\t", count);
+        print_proc(list->process);
+        count++;
+        list = list->next;
+    }
+    printf("[PROCESS LIST] End\n");
+
 }
 
 // void insert_at_head(struct proc p, t_list* list_ptr){        

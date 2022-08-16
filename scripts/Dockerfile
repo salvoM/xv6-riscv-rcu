@@ -5,7 +5,9 @@ RUN apt-get update
 RUN apt-get install -y autoconf automake autotools-dev curl \
     libmpc-dev libmpfr-dev libgmp-dev gawk build-essential \
     bison flex texinfo gperf libtool patchutils bc zlib1g-dev tmux git \
-    libexpat-dev
+    libexpat-dev nano
+ADD aliases /aliases
+RUN cat aliases >> /root/.bashrc
 WORKDIR /root
 RUN git clone https://github.com/riscv/riscv-gnu-toolchain.git
 WORKDIR /root/riscv-gnu-toolchain

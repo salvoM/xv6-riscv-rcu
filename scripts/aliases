@@ -1,0 +1,3 @@
+alias qemu='cd /local && make TOOLPREFIX=/opt/riscv/toolchain/bin/riscv64-unknown-elf- qemu'
+alias qemu-gdb='cd /local && make TOOLPREFIX=/opt/riscv/toolchain/bin/riscv64-unknown-elf- qemu-gdb'
+alias gdb='/opt/riscv/toolchain/bin/riscv64-unknown-elf-gdb /local/kernel/kernel'

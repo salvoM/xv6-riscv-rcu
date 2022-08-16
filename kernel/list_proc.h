@@ -45,3 +45,4 @@ void init_writers_lock(struct spinlock* writers_lock_ptr);
 
 int is_empty(t_list list);
 
+void print_list(t_list list);

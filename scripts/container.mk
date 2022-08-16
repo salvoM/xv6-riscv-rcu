@@ -3,7 +3,9 @@ build:
 	docker build . -t xv6rv
 
 connect:
-	docker run -ti -v `pwd`/..:/local --rm xv6rv:latest /bin/bash
+	docker run -ti --name xv6_rcu -v `pwd`/..:/local --rm xv6rv_mod /bin/bash
+debug:
+	docker exec -ti xv6_rcu /bin/bash
 
 # to compile the kernel
 #      cd /local && make TOOLPREFIX=/opt/riscv/toolchain/bin/riscv64-unknown-elf-
