@@ -594,29 +594,44 @@ scheduler(void)
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
 
-    t_node* tmp_node_ptr;
+    t_node *tmp_node_ptr, *new_node_ptr, *ptr_node_to_free;
 
     // Is it ok with intr_on()?
     rcu_read_lock();
 
     for (tmp_node_ptr = process_list ; tmp_node_ptr != 0; tmp_node_ptr = tmp_node_ptr->next)
     {
-      printf("[LOG SCHEDULER] process state = %d\n",tmp_node_ptr->process.state );
+      // printf("[LOG SCHEDULER] process state = %d\n",tmp_node_ptr->process.state );
       if(tmp_node_ptr->process.state == RUNNABLE){
         printf("[LOG SCHEDULER] Scheduling this process: \n");
-        print_proc(tmp_node_ptr->process);
+        print_proc(&(tmp_node_ptr->process));
         // Update dello stato a running
         if(tmp_node_ptr->process.pid==1){
           // acquire(&tmp_node_ptr->process.lock); 
-          tmp_node_ptr->process.state = RUNNING;
-          c->proc=&(tmp_node_ptr->process);
-          swtch(&c->context, &(tmp_node_ptr->process.context));
+
+          new_node_ptr                = (t_node*)knmalloc(sizeof(t_node));
+          new_node_ptr->process       = tmp_node_ptr->process;
+          new_node_ptr->process.state = RUNNING;
+
+          int found = list_update_rcu(&process_list, new_node_ptr,&(tmp_node_ptr->process), &rcu_writers_lock, &ptr_node_to_free);
+          if(found != 0) {
+            printf("[LOG SCHEDULER] list_update_rcu succeded: \n");
+            knfree(ptr_node_to_free);  
+          }
+          else{
+            panic("[LOG SCHEDULER] list_update_rcu failed \n");
+          }
+          // tmp_node_ptr->process.state = RUNNING;
+          c->proc=&(new_node_ptr->process);
+          swtch(&c->context, &(new_node_ptr->process.context));
           c->proc = 0;
           // release(&tmp_node_ptr->process.lock);
           break;
         }
-        t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
-        t_node* ptr_node_to_free;
+        printf("[LOG SCHEDULER] Scheduler non-init zone \n");
+
+        new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
+        
 
         new_node_ptr->process = tmp_node_ptr->process;
         rcu_read_unlock(); // lo metterei qui
