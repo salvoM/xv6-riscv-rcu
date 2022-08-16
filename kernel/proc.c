@@ -182,7 +182,7 @@ static void
 freeproc(struct proc *p)
 {
   printf("[LOG FREEPROC] proc @ %p\n", p);
-  print_proc(*p);
+  print_proc(p);
 
   if(p->trapframe)
     kfree((void*)p->trapframe);
@@ -396,6 +396,8 @@ fork(void)
 void
 reparent(struct proc *p)
 {
+  printf("[LOG REPARENT] called with ");
+  print_proc(p);
   t_node* tmp_node_ptr;
   t_node* ptr_node_to_free;
   
@@ -487,10 +489,14 @@ exit(int status)
   t_node* node_ptr_to_free;
   t_node* new_node_ptr=(t_node*)knmalloc(sizeof(t_node));
 
+  printf("[LOG LIST_UPDATE:RCU] p = %p, process_list = %p, new_node_ptr = %p\n", p, process_list, new_node_ptr);
+
   new_node_ptr->process         = *p;  
   new_node_ptr->process.xstate  = status;
   new_node_ptr->process.state   = ZOMBIE;
   
+  printf("[LOG LIST_UPDATE:RCU] Called from exit\n");
+  printf("[LOG LIST_UPDATE:RCU] p = %p, process_list = %p, new_node_ptr = %p\n", p, process_list, new_node_ptr);
   printf("[LOG LIST_UPDATE:RCU] Called from exit\n");
   print_list(process_list);
   if(list_update_rcu(&process_list, new_node_ptr, p, &rcu_writers_lock, &node_ptr_to_free) == 0){
@@ -696,7 +702,7 @@ sched(void)
 
   if(!holding(&p->lock)){
     printf("[LOG SCHED] Disabled panic(\"sched p->lock\")\n");
-    print_proc(*p);
+    print_proc(p);
     // panic("sched p->lock");
   }
   if(mycpu()->noff != 1){
@@ -798,7 +804,7 @@ sleep(void *chan, struct spinlock *lk)
   printf("[LOG SLEEP] Process list\n");
   print_list(process_list);
   printf("[LOG SLEEP] mycpu()->proc\n");
-  print_proc(*p);
+  print_proc(p);
 
   t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
   t_node* ptr_node_to_free;
@@ -814,7 +820,7 @@ sleep(void *chan, struct spinlock *lk)
   }
   else
   {
-    printf("[LOG SLEEP] After List_update_rcu\n");
+    printf("[LOG SLEEP] List_update_rcu succeded\n");
     print_list(process_list);
   }
 
@@ -823,7 +829,7 @@ sleep(void *chan, struct spinlock *lk)
 
   // mycpu()->proc = &(new_node_ptr->process);
   // printf("[LOG SLEEP] Now running this\n");
-  // print_proc(*(mycpu()->proc));
+  // print_proc((mycpu()->proc));
   
 
   /* Perchè ho commentato knfree
@@ -842,6 +848,13 @@ sleep(void *chan, struct spinlock *lk)
   // p->chan = 0;
 
   /**/
+  /*
+  Quando un processo va in sleep e viene svegliato
+  tramite wakeup (cioè viene reso di nuovo RUNNABLE)
+  e infine viene rischedulato (cioè lo scheduler lo assegna alla cpu e lo setta a RUNNING)
+  continua da qui! ->
+  */
+  printf("[LOG SLEEP] chan %p, WOKE UP!\n", chan);
   new_node_ptr     = (t_node*)knmalloc(sizeof(t_node));
   ptr_node_to_free = 0;
 
@@ -906,7 +919,7 @@ wakeup(void *chan)
           printf("no process running\n");
         }
         else{
-          print_proc(*myproc());
+          print_proc(myproc());
         }
         print_list(process_list);
       }
@@ -1034,7 +1047,7 @@ procdump(void)
 
 }
 
-void print_proc(struct proc p){
+void print_proc(struct proc *p){
   static char *states[] = {
   [UNUSED]    "unused",
   [SLEEPING]  "sleep ",
@@ -1053,6 +1066,6 @@ void print_proc(struct proc p){
           sz        = %d\n\
           pagetable = %p\n\
           }\n\n",
-        &p, p.name, states[p.state], p.chan,p.killed,p.nKStack,
-        p.pid, p.kstack, p.sz, p.pagetable);
+        p, p->name, states[p->state], p->chan,p->killed,p->nKStack,
+        p->pid, p->kstack, p->sz, p->pagetable);
   }
