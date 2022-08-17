@@ -33,11 +33,11 @@ extern struct cpu cpus[NCPU];
 // user page table. not specially mapped in the kernel page table.
 // the sscratch register points here.
 // uservec in trampoline.S saves user registers in the trapframe,
-// then initializes registers from the trapframe's
+// then initializes registers  the trapframe's
 // kernel_sp, kernel_hartid, kernel_satp, and jumps to kernel_trap.
 // usertrapret() and userret in trampoline.S set up
 // the trapframe's kernel_*, restore user registers from the
-// trapframe, switch to the user page table, and enter user space.
+// trapframe, switch to the ufromser page table, and enter user space.
 // the trapframe includes callee-saved user registers like s0-s11 because the
 // return-to-user path via usertrapret() doesn't return through
 // the entire kernel call stack.
