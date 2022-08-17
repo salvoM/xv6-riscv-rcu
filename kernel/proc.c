@@ -557,7 +557,8 @@ wait(uint64 addr)
           }
           // Update of the parent // Is it necessary?
           printf("[LOG LIST_UPDATE:RCU] Called from wait\n");
-          int t = list_update_rcu(&process_list, ptr_new_node, p, &rcu_writers_lock, &ptr_node_to_free);
+          //int t =
+           list_update_rcu(&process_list, ptr_new_node, p, &rcu_writers_lock, &ptr_node_to_free);
           // if(t == 0){
           //   panic("[WAIT] list_update_rcu failed\n");
           // }
