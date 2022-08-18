@@ -3,7 +3,7 @@ build:
 	docker build . -t xv6rv
 
 connect:
-	docker run -ti --name xv6_rcu -v `pwd`/..:/local --rm xv6rv_mod /bin/bash
+	docker run -ti --name xv6_rcu -v `pwd`/..:/local --rm xv6rv /bin/bash
 debug:
 	docker exec -ti xv6_rcu /bin/bash
 
