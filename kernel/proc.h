@@ -94,6 +94,9 @@ struct proc {
   int nKStack;                 // identifier of the kstack used by the process
   int pid;                     // Process ID
 
+  // Added by us
+  long int uid;
+  long int p_uid;
   // proc_tree_lock must be held when using this:
   struct proc *parent;         // Parent process
 

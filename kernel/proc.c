@@ -10,8 +10,12 @@
 struct cpu cpus[NCPU];
 
 // Per i kstacks
+// Forse dovrebbe essere static? 
 int bitmap[NPROC];
 
+
+// Forse avrà bisogno di un lock?
+static int unique_id = 0;
 
 // struct proc proc[NPROC];
 t_list process_list;                //! Must be initialized!!
@@ -128,6 +132,11 @@ allocproc(void)
   
   tmp_proc_ptr->pid = allocpid();
   tmp_proc_ptr->state = USED;
+  /* Unique ID */
+  tmp_proc_ptr->uid   = unique_id;
+  unique_id++;
+  tmp_proc_ptr->p_uid = -1;
+  /* Unique ID */
 
   //Allocate kernel stack
   int n;
