@@ -604,6 +604,7 @@ wait(uint64 addr)
           synchronize_rcu(); // funziona? boh
           // freeproc(&(ptr_index_node->process));
           knfree(ptr_index_node);
+          release(&wait_lock);
 
           return pid;
         }
