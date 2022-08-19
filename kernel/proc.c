@@ -495,7 +495,9 @@ exit(int status)
     panic("init exiting");
 
   // Close all open files.
-  closeFile(p);
+  push_off();
+  mycpu()->proc = closeFile(p);
+  pop_off();
 
   begin_op();
   iput(p->cwd);
@@ -507,8 +509,12 @@ exit(int status)
   // Give any children to init.
   reparent(p);
 
+  p = myproc();
+
   // Parent might be sleeping in wait().
-  wakeup(p->parent);
+  wakeup((void*)p->p_uid);
+  
+  p = myproc();
   
   t_node* node_ptr_to_free;
   t_node* new_node_ptr=(t_node*)knmalloc(sizeof(t_node));
