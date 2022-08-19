@@ -756,6 +756,7 @@ yield(void)
   t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
   t_node* ptr_node_to_free;
 
+  new_node_ptr->process       = *p;
   new_node_ptr->process.state = RUNNABLE;
 
   if(list_update_rcu(&process_list, new_node_ptr, p,
