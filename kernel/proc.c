@@ -386,6 +386,7 @@ fork(void)
 
   acquire(&wait_lock);
   np->parent = p;
+  np->p_uid  = p->uid;
   release(&wait_lock);
 
   np->state = RUNNABLE;
