@@ -565,7 +565,7 @@ wait(uint64 addr)
   for(;;){
     havekids = 0;
     for (ptr_index_node = process_list ; ptr_index_node != 0; ptr_index_node = ptr_index_node->next){
-      if(ptr_index_node->process.parent == p){
+      if(ptr_index_node->process.p_uid == p->uid){
         havekids = 1;
         if(ptr_index_node->process.state == ZOMBIE){
           // We need to update the parent
