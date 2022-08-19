@@ -515,7 +515,7 @@ exit(int status)
   wakeup((void*)p->p_uid);
   
   p = myproc();
-  
+
   t_node* node_ptr_to_free;
   t_node* new_node_ptr=(t_node*)knmalloc(sizeof(t_node));
 
@@ -551,7 +551,7 @@ exit(int status)
 int
 wait(uint64 addr)
 {
-
+  
   int havekids, pid;
   struct proc *p = myproc();
 
@@ -1117,6 +1117,8 @@ void print_proc(struct proc *p){
           state     = %s\n\
           chan      = %p\n\
           parent    = %p\n\
+          uid       = %p\n\
+          p_uid     = %p\n\
           killed    = %d\n\
           nKStack   = %d\n\
           pid       = %d\n\
@@ -1124,6 +1126,7 @@ void print_proc(struct proc *p){
           sz        = %d\n\
           pagetable = %p\n\
           }\n\n",
-        p, p->name, states[p->state], p->chan, p->parent,p->killed,p->nKStack,
+        p, p->name, states[p->state], p->chan, p->parent,
+        p->uid, p->p_uid, p->killed,p->nKStack,
         p->pid, p->kstack, p->sz, p->pagetable);
   }
