@@ -618,7 +618,7 @@ wait(uint64 addr)
     }
 
     // Wait for a child to exit.
-    sleep(p, &wait_lock);  //DOC: wait-sleep
+    sleep((void*)p->uid, &wait_lock);  //DOC: wait-sleep
   }
 }
 
