@@ -326,6 +326,7 @@ growproc(int n)
   /* Reclamation phase */
   synchronize_rcu(); // funziona? boh
   knfree(node_ptr_to_free);
+  mycpu()->proc = &(new_node_ptr->process);
   /* End Reclamation phase */
 
   return 0;
