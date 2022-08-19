@@ -172,6 +172,10 @@ allocproc(void)
   for(int i = 0; i < NOFILE; i++)
     tmp_proc_ptr->ofile[i] = 0;
   tmp_proc_ptr->killed = 0;
+  tmp_proc_ptr->chan   = 0;
+  tmp_proc_ptr->parent = 0;
+  tmp_proc_ptr->xstate = 0;
+  tmp_proc_ptr->cwd    = 0;
   return tmp_proc_ptr; // ?
 }
 
