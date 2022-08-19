@@ -448,6 +448,7 @@ void closeFile(struct proc* p){
   t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
   
   new_node_ptr->process = *p;
+  new_node_ptr->next    = 0;
   for(int fd = 0; fd < NOFILE; fd++){
     if(new_node_ptr->process.ofile[fd]){
       struct file *f = new_node_ptr->process.ofile[fd];
