@@ -457,7 +457,7 @@ reparent(struct proc *p)
 }
 
 // Helper function that closes all the file descriptors of a given process
-void closeFile(struct proc* p){
+struct proc* closeFile(struct proc* p){
   printf("[LOG closeFile] **********\n");
   t_node* node_ptr_to_free;
   t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
@@ -479,6 +479,7 @@ void closeFile(struct proc* p){
   synchronize_rcu(); // funziona? boh
   // freeproc(&(node_ptr_to_free->process));
   knfree(node_ptr_to_free);
+  return &(new_node_ptr->process);
 }
 
 // Exit the current process.  Does not return.
