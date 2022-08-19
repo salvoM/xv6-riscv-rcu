@@ -573,30 +573,31 @@ wait(uint64 addr)
           pid = ptr_index_node->process.pid;
 
           //update the parent
-          t_node* ptr_new_node = (t_node*)knmalloc(sizeof(t_node));
-          t_node* ptr_node_to_free;
-          ptr_new_node->process = *p;
-          ptr_new_node->next    = 0; 
+          // t_node* ptr_new_node = (t_node*)knmalloc(sizeof(t_node));
+          // t_node* ptr_node_to_free;
+          // ptr_new_node->process = *p;
+          // ptr_new_node->next    = 0; 
 
           if(addr != 0 && copyout(p->pagetable, addr, (char *)&(ptr_index_node->process.xstate),
                                   sizeof(ptr_index_node->process.xstate)) < 0) {
             /* if something went wrong */
-            knfree(ptr_new_node);
+            // knfree(ptr_new_node);
             release(&wait_lock);
+            panic("Wait failed!");
             return -1;
           }
           // Update of the parent // Is it necessary?
-          printf("[LOG LIST_UPDATE:RCU] Called from wait\n");
-          int t = list_update_rcu(&process_list, ptr_new_node, p, &rcu_writers_lock, &ptr_node_to_free);
-          if(t == 0){
-            panic("[WAIT] list_update_rcu failed\n");
-          }
-          else{
-            mycpu()->proc = &(ptr_new_node->process);
-          }
-          synchronize_rcu(); // funziona? boh
-          // freeproc(&(ptr_node_to_free->process));
-          knfree(ptr_node_to_free);
+          // printf("[LOG LIST_UPDATE:RCU] Called from wait\n");
+          // int t = list_update_rcu(&process_list, ptr_new_node, p, &rcu_writers_lock, &ptr_node_to_free);
+          // if(t == 0){
+          //   panic("[WAIT] list_update_rcu failed\n");
+          // }
+          // else{
+          //   mycpu()->proc = &(ptr_new_node->process);
+          // }
+          // synchronize_rcu(); // funziona? boh
+          // // freeproc(&(ptr_node_to_free->process));
+          // knfree(ptr_node_to_free);
 
           // Delete the zombie child from the list and reclaim it
           list_del_rcu(&process_list, ptr_index_node, &rcu_writers_lock);
