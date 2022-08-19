@@ -823,6 +823,7 @@ sleep(void *chan, struct spinlock *lk)
   // p->state = SLEEPING;
 
   /**/
+  rcu_read_lock();
   printf("[LOG SLEEP] Process list\n");
   print_list(process_list);
   printf("[LOG SLEEP] mycpu()->proc\n");
@@ -912,6 +913,8 @@ sleep(void *chan, struct spinlock *lk)
   // release(&p->lock);
   acquire(lk);
   print_list(process_list);
+  rcu_read_unlock();
+
 }
 
 // Wake up all processes sleeping on chan.
