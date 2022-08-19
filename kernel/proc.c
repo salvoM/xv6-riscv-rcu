@@ -302,8 +302,8 @@ growproc(int n)
   t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
 
   struct proc* tmp_proc_ptr = myproc();
-  new_node_ptr->process = *tmp_proc_ptr;
-  sz = tmp_proc_ptr->sz;
+  new_node_ptr->process     = *tmp_proc_ptr;
+  sz                        = tmp_proc_ptr->sz;
   
   if(n > 0){
     if((sz = uvmalloc(new_node_ptr->process.pagetable, sz, sz + n)) == 0) {
@@ -313,7 +313,7 @@ growproc(int n)
     sz = uvmdealloc(new_node_ptr->process.pagetable, sz, sz + n);
   }
   new_node_ptr->process.sz = sz;
-  printf("[LOG LIST_UPDATE:RCU] Called from growproc");
+  printf("[LOG LIST_UPDATE:RCU] Called from growproc\n");
   if(list_update_rcu(&process_list, new_node_ptr, tmp_proc_ptr, &rcu_writers_lock, &node_ptr_to_free) == 0){
     panic("proc disappeared");
   }
@@ -440,7 +440,8 @@ void closeFile(struct proc* p){
   printf("[LOG closeFile] **********\n");
   t_node* node_ptr_to_free;
   t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
-  new_node_ptr->process=*p;
+  
+  new_node_ptr->process = *p;
   for(int fd = 0; fd < NOFILE; fd++){
     if(new_node_ptr->process.ofile[fd]){
       struct file *f = new_node_ptr->process.ofile[fd];
@@ -558,12 +559,12 @@ wait(uint64 addr)
           // Update of the parent // Is it necessary?
           printf("[LOG LIST_UPDATE:RCU] Called from wait\n");
           int t = list_update_rcu(&process_list, ptr_new_node, p, &rcu_writers_lock, &ptr_node_to_free);
-          // if(t == 0){
-          //   panic("[WAIT] list_update_rcu failed\n");
-          // }
-          // else{
-          //   mycpu()->proc = &(ptr_new_node->process);
-          // }
+          if(t == 0){
+            panic("[WAIT] list_update_rcu failed\n");
+          }
+          else{
+            mycpu()->proc = &(ptr_new_node->process);
+          }
           synchronize_rcu(); // funziona? boh
           // freeproc(&(ptr_node_to_free->process));
           knfree(ptr_node_to_free);
@@ -632,6 +633,7 @@ scheduler(void)
           if(found != 0) {
             printf("[LOG SCHEDULER] list_update_rcu succeded: \n");
             knfree(ptr_node_to_free);  
+            // rcu_read_unlock();
           }
           else{
             panic("[LOG SCHEDULER] list_update_rcu failed \n");
@@ -820,7 +822,7 @@ sleep(void *chan, struct spinlock *lk)
   t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
   t_node* ptr_node_to_free;
 
-  new_node_ptr->process = *p;
+  new_node_ptr->process       = *p;
   new_node_ptr->process.chan  = chan;
   new_node_ptr->process.state = SLEEPING;
   
@@ -834,6 +836,7 @@ sleep(void *chan, struct spinlock *lk)
     printf("[LOG SLEEP] List_update_rcu succeded\n");
     mycpu()->proc = &(new_node_ptr->process);
     print_list(process_list);
+    // rcu_read_unlock();
   }
 
   synchronize_rcu(); // funziona? boh
@@ -853,7 +856,7 @@ sleep(void *chan, struct spinlock *lk)
 
   /**/
   printf("[LOG SLEEP] Calling sched()\n");
-
+  // intr_off();
   sched();
 
   // Tidy up.
@@ -871,7 +874,7 @@ sleep(void *chan, struct spinlock *lk)
   new_node_ptr     = (t_node*)knmalloc(sizeof(t_node));
   ptr_node_to_free = 0;
 
-  new_node_ptr->process = *p;
+  new_node_ptr->process       = *p;
   new_node_ptr->process.chan  = 0;
   
   int found = list_update_rcu(&process_list, new_node_ptr, p,
@@ -907,7 +910,7 @@ sleep(void *chan, struct spinlock *lk)
 void
 wakeup(void *chan)
 {
-  printf("[LOG WAKEUP] Called with void* chan = %p\n", chan);
+  // printf("[LOG WAKEUP] Called with void* chan = %p\n", chan);
   t_node* tmp_node_ptr;
 
   rcu_read_lock();
@@ -1078,6 +1081,7 @@ void print_proc(struct proc *p){
           name      = %s\n\
           state     = %s\n\
           chan      = %p\n\
+          parent    = %p\n\
           killed    = %d\n\
           nKStack   = %d\n\
           pid       = %d\n\

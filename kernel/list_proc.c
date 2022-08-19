@@ -113,10 +113,10 @@ void list_add_rcu(t_list* list_ptr, t_node* node_ptr, struct spinlock* writers_l
     //Lock out other writers
     acquire(writers_lock_ptr);
     
-    // rcu_read_lock();
+    rcu_read_lock();
     tmp_node_ptr = rcu_dereference_pointer(*list_ptr);
     node_ptr->next = tmp_node_ptr; // do we need this?
-    // rcu_read_unlock();
+    rcu_read_unlock();
     
     rcu_assign_pointer(list_ptr, node_ptr);
     
