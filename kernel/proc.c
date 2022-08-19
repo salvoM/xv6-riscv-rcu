@@ -29,7 +29,9 @@ struct spinlock rcu_writers_lock;   //! Must be initialized!!
 
 struct proc *initproc;
 
-int nextpid = 1;
+// static preserve its value wherever in the program
+// static vars will be in .data not in stack
+static int nextpid = 1;
 struct spinlock pid_lock;
 
 extern void forkret(void);
