@@ -1098,6 +1098,6 @@ void print_proc(struct proc *p){
           sz        = %d\n\
           pagetable = %p\n\
           }\n\n",
-        p, p->name, states[p->state], p->chan,p->killed,p->nKStack,
+        p, p->name, states[p->state], p->chan, p->parent,p->killed,p->nKStack,
         p->pid, p->kstack, p->sz, p->pagetable);
   }
