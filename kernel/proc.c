@@ -413,6 +413,7 @@ fork(void)
 void
 reparent(struct proc *p)
 {
+  /* Not tested yet: assume it's broken*/
   printf("[LOG REPARENT] called with ");
   print_proc(p);
   t_node* tmp_node_ptr;
@@ -424,15 +425,17 @@ reparent(struct proc *p)
   for (tmp_node_ptr = process_list ; tmp_node_ptr != 0; tmp_node_ptr = tmp_node_ptr->next){
     
     
-    if(tmp_node_ptr->process.parent == p){
+    if(tmp_node_ptr->process.p_uid == p->uid){
     
       t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
       
       new_node_ptr->process = tmp_node_ptr->process;
       rcu_read_unlock(); //lo sposteri qui
       
+      /* */
       new_node_ptr->process.parent = initproc;
-      
+      new_node_ptr->process.p_uid  = 0; // qui ci andrebbe l'uid di initproc, che forse è 0
+      /* */
       
       printf("[LOG LIST_UPDATE:RCU] Called from reparent\n");
       int t = list_update_rcu(&process_list, new_node_ptr, p, &rcu_writers_lock, &ptr_node_to_free);
@@ -442,7 +445,8 @@ reparent(struct proc *p)
       // freeproc(&(ptr_node_to_free->process));
       knfree(ptr_node_to_free);
       
-      wakeup(initproc); // Boh?
+      // wakeup(initproc); // C'è da svegliare initproc, questo al 90% è rotto
+      wakeup((void*)p->uid);
     }
     else rcu_read_unlock();
     rcu_read_lock();
