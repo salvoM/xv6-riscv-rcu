@@ -95,3 +95,8 @@ CFLAGS += -mcmodel=medany
 CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax
 ```
 By uncommenting line with preprocessor macro DEBUG
+
+Then inside the container
+```sh
+cd /local && make TOOLPREFIX=/opt/riscv/toolchain/bin/riscv64-unknown-elf- clean
+```
