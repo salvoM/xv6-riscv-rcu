@@ -1,10 +1,10 @@
 import os
 PROJECT_HOME_DIR = '/home/sm/uni/AOS/xv6-riscv-rcu'
 KERNELDIR = 'kernel' # change if i go to scripts
-kernel_files = ['kmalloc.c', 'list_proc.c', 'proc.c', 'sleeplock.c']
+kernel_files = ['sched.c','kmalloc.c', 'list_proc.c', 'proc.c', 'sleeplock.c']
 
 def is_printf(line):
-    return 'printf' in line and ');' in line
+    return 'print' in line and ');' in line
 
 def is_comment(line):
     return '//' in line
@@ -21,7 +21,6 @@ def find_printf_blocks(content):
         if is_printf(line):
             b.append(line)
             s = count_leading_space(line)
-            print(s)
         else:
             if len(b) != 0:
                 blocks.append((b, s))
@@ -37,16 +36,18 @@ for name in kernel_files:
     filepath = os.path.join(PROJECT_HOME_DIR, KERNELDIR, name)
     with open(filepath, 'r') as f:
         content = f.readlines()
+        code  = ''.join(content)
         for b, lead_space in find_printf_blocks(content):
             printfs        = ''.join(b)
+            # print(printfs, lead_space)
             printfs_debug  = ' ' * lead_space + s 
             printfs_debug += ''.join(b)
             printfs_debug += ' ' * lead_space + e
-            original_code  = ''.join(content)
-            mod_code       = original_code.replace(printfs, printfs_debug)
+            code           = code.replace(printfs, printfs_debug)
+            # print(f"original: {code}\n mod {}")
 
     with open(filepath, 'w') as f:
-        f.write(mod_code)
+        f.write(code)
 
 print("[*] Source code modified\n")
 

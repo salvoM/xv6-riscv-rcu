@@ -439,7 +439,7 @@ reparent(struct proc *p)
       
       printf("[LOG LIST_UPDATE:RCU] Called from reparent\n");
       int t = list_update_rcu(&process_list, new_node_ptr, p, &rcu_writers_lock, &ptr_node_to_free);
-      if(t != 1) printf("list update died in reparent\n");
+      if(t != 1) panic("list update died in reparent\n");
       synchronize_rcu(); // funziona? boh
       
       // freeproc(&(ptr_node_to_free->process));
@@ -748,8 +748,8 @@ sched(void)
     // panic("sched p->lock");
   }
   if(mycpu()->noff != 1){
-    printf("[LOG SCHED] Disabled panic(\"sched locks\")\n\
-            mycpu()->noff = %d\n",mycpu()->noff);
+    printf("[LOG SCHED] Disabled panic(\"sched locks\")\n");
+    printf("mycpu()->noff = %d\n",mycpu()->noff);
     // panic("sched locks");
   }
   if(p->state == RUNNING){
