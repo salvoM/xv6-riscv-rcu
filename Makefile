@@ -61,6 +61,7 @@ OBJDUMP = $(TOOLPREFIX)objdump
 CFLAGS = -Wall -Werror -O0 -fno-omit-frame-pointer -ggdb
 CFLAGS += -MD
 CFLAGS += -mcmodel=medany
+# CFLAGS += -D DEBUG
 CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax
 CFLAGS += -gdwarf-2
 CFLAGS += -I.

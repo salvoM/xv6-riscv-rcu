@@ -184,7 +184,9 @@ int list_update_rcu(t_list* list_ptr, t_node* new_node_ptr, struct proc* proc_pt
         return 1;
     }
     if(current_node_ptr == 0){
+        #ifdef DEBUG
         printf("SIAMO PROPRIO SCEMI");
+        #endif
     }
     t_node* prev_node_ptr = current_node_ptr;
     current_node_ptr = current_node_ptr->next;
@@ -270,14 +272,20 @@ int is_empty(t_list list){
 
 void print_list(t_list list){
     int count = 0;
+    #ifdef DEBUG
     printf("[PROCESS LIST *Start] \n");
+    #endif
     while(!is_empty(list)){
+        #ifdef DEBUG
         printf("%d)\t", count);
         print_proc(&(list->process));
+        #endif
         count++;
         list = list->next;
     }
+    #ifdef DEBUG
     printf("[PROCESS LIST *End] \n");
+    #endif
 
 }
 

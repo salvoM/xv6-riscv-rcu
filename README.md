@@ -86,3 +86,12 @@ ifndef CPUS
 CPUS := 1
 endif
 ```
+
+## Enable DEBUG printfs
+In the main folder of xv6 edit CFLAGS in the Makefile:
+```make
+CFLAGS += -mcmodel=medany
+# CFLAGS += -D DEBUG
+CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax
+```
+By uncommenting line with preprocessor macro DEBUG

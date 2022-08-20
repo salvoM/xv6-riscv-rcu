@@ -1,7 +1,7 @@
 import os
 PROJECT_HOME_DIR = '/home/sm/uni/AOS/xv6-riscv-rcu'
 KERNELDIR = 'kernel' # change if i go to scripts
-kernel_files = ['sched.c','kmalloc.c', 'list_proc.c', 'proc.c', 'sleeplock.c']
+kernel_files = ['kmalloc.c', 'list_proc.c', 'proc.c', 'sleeplock.c']
 
 def is_printf(line):
     return 'print' in line and ');' in line
