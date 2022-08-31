@@ -23,7 +23,9 @@ void rcu_read_lock();
 
 void rcu_read_unlock();
 
-void synchronize_rcu();
+void synchronize_rcu(int cpu_id);
+
+int context_eq(struct context c1, struct context c2);
 
 void rcu_assign_pointer(t_list* list_ptr_dst, t_node* node_ptr_src);
 
