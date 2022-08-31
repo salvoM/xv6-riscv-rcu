@@ -12,7 +12,6 @@
 
 
 
-struct spinlock wx_lock; // Guarantees mutual exclusion between writers
 
 void rcu_read_lock(){
     //No block or sleep in read critical section
@@ -24,7 +23,7 @@ void rcu_read_unlock(){
     pop_off();
 }
 
-void synchronize_rcu(){
+void synchronize_rcu(int cpu_id){
     // Tries to run on each CPU to force a context switch
 
     /*
@@ -60,7 +59,74 @@ void synchronize_rcu(){
     //         return;
     //     }
     // }
+    int finished = 0;
+    int target_value_achieved[NCPU];
+
+    // memset(&target_value_achieved, 0, sizeof(int)*NCPU);
+
+    struct context cs[NCPU];
+
+    for (int i = 0; i < NCPU; i++)
+    {
+        if(i == cpu_id) continue;
+
+        if(__atomic_load_n(&(cpus[i].idle), __ATOMIC_RELAXED) == 1)
+            target_value_achieved[i] = 1;
+        else
+        {
+            target_value_achieved[i] = 0;
+            cs[i] = cpus[i].context;
+        }
+    }
+
+    /* End bootstrapping phase*/
+    
+    while(!finished){
+        finished = 1;
+
+        for (int i = 0; i < NCPU; i++)
+        {
+            if(i == cpu_id) continue;
+
+            if(target_value_achieved[i] == 1) continue;
+
+            if( __atomic_load_n(&(cpus[i].idle), __ATOMIC_RELAXED) == 1 ||
+                !context_eq(cs[i], cpus[i].context)
+              ) // If the CPU is idle, or changed context
+                target_value_achieved[i] = 1;
+            else
+                finished = 0;
+        }
+    }
 }
+
+int context_eq(struct context c1, struct context c2)
+{
+    return 
+    c1.ra == c2.ra   &&
+    c1.sp == c2.sp   &&
+    c1.s0 == c2.s0   &&
+    c1.s1 == c2.s1   &&
+    c1.s2 == c2.s2   &&
+    c1.s3 == c2.s3   &&
+    c1.s4 == c2.s4   &&
+    c1.s5 == c2.s5   &&
+    c1.s6 == c2.s6   &&
+    c1.s7 == c2.s7   &&
+    c1.s8 == c2.s8   &&
+    c1.s9 == c2.s9   &&
+    c1.s10 == c2.s10 &&
+    c1.s11 == c2.s11
+    ;
+}
+
+// int call_rcu(){
+//     // Needs interrupts disabled
+    
+//     int freed = 0;
+
+
+// }
 
 void rcu_assign_pointer(t_list* list_ptr_dst, t_node* node_ptr_src){
     //rcu_assign_pointer(gobal_ptr, ptr);
