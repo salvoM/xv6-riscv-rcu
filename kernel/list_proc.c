@@ -177,7 +177,7 @@ void list_add_rcu(t_list* list_ptr, t_node* node_ptr, struct spinlock* writers_l
     t_node* tmp_node_ptr;
 
     //Lock out other writers
-    acquire(writers_lock_ptr);
+    // acquire(writers_lock_ptr);
     
     rcu_read_lock();
     tmp_node_ptr = rcu_dereference_pointer(*list_ptr);
@@ -186,7 +186,7 @@ void list_add_rcu(t_list* list_ptr, t_node* node_ptr, struct spinlock* writers_l
     
     rcu_assign_pointer(list_ptr, node_ptr);
     
-    release(writers_lock_ptr);
+    // release(writers_lock_ptr);
 
 }
 
@@ -199,7 +199,7 @@ void list_del_rcu(t_list* list_ptr, t_node* node_ptr, struct spinlock* writers_l
         panic("list_del_rcu");
     }
 
-    acquire(writers_lock_ptr);
+    // acquire(writers_lock_ptr);
 
     // Dereferencing like this? W/o read_lock is it ok?
     t_node* tmp_node_ptr = rcu_dereference_pointer(*list_ptr);
@@ -208,7 +208,7 @@ void list_del_rcu(t_list* list_ptr, t_node* node_ptr, struct spinlock* writers_l
         // Changing the head of the list
         // *list_ptr = tmp_node_ptr->next;
         rcu_assign_pointer(list_ptr, tmp_node_ptr->next); // Dovrebbe essere atomica
-        release(writers_lock_ptr);
+        // release(writers_lock_ptr);
         return;
     }
     t_node* prev_node_ptr = tmp_node_ptr;
@@ -228,13 +228,13 @@ void list_del_rcu(t_list* list_ptr, t_node* node_ptr, struct spinlock* writers_l
         }
         
     }
-    release(writers_lock_ptr);
+    // release(writers_lock_ptr);
 
 }
 
 int list_update_rcu(t_list* list_ptr, t_node* new_node_ptr, struct proc* proc_ptr, struct spinlock* writers_lock_ptr, t_node** ptr_to_free ){
     int found = 0;
-    acquire(writers_lock_ptr);
+    // acquire(writers_lock_ptr);
     rcu_read_lock();
     t_node* current_node_ptr = rcu_dereference_pointer(*list_ptr);
 
@@ -246,7 +246,7 @@ int list_update_rcu(t_list* list_ptr, t_node* new_node_ptr, struct proc* proc_pt
 
         rcu_assign_pointer(list_ptr, new_node_ptr); // va fatta atomicamente
         rcu_read_unlock();
-        release(writers_lock_ptr);
+        // release(writers_lock_ptr);
         return 1;
     }
     if(current_node_ptr == 0){
@@ -275,13 +275,13 @@ int list_update_rcu(t_list* list_ptr, t_node* new_node_ptr, struct proc* proc_pt
     }
 
     rcu_read_unlock();
-    release(writers_lock_ptr);
+    // release(writers_lock_ptr);
     return found;
 }
 
 int list_del_from_proc_rcu(t_list* list_ptr, struct proc* proc_ptr, struct spinlock* writers_lock_ptr, t_node** ptr_to_free){
     int found = 0;
-    acquire(writers_lock_ptr);
+    // acquire(writers_lock_ptr);
     rcu_read_lock();
     t_node* current_node_ptr = rcu_dereference_pointer(*list_ptr);
 
@@ -291,7 +291,7 @@ int list_del_from_proc_rcu(t_list* list_ptr, struct proc* proc_ptr, struct spinl
         
         rcu_assign_pointer(list_ptr, current_node_ptr->next); // va fatta atomicamente
         rcu_read_unlock();
-        release(writers_lock_ptr);
+        // release(writers_lock_ptr);
         return 1;
     }
 
@@ -316,7 +316,7 @@ int list_del_from_proc_rcu(t_list* list_ptr, struct proc* proc_ptr, struct spinl
     }
 
     rcu_read_unlock();
-    release(writers_lock_ptr);
+    // release(writers_lock_ptr);
     return found;
 }
 
