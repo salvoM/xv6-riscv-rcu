@@ -24,7 +24,7 @@ void rcu_read_unlock(){
     pop_off();
 }
 
-void synchronize_rcu(int cpu_id){
+void synchronize_rcu(int cpu_id,struct spinlock* write_lock){
     // Tries to run on each CPU to force a context switch
 
     /*
@@ -60,6 +60,7 @@ void synchronize_rcu(int cpu_id){
     //         return;
     //     }
     // }
+    acquire(write_lock);
     int finished = 0;
     int target_value_achieved[NCPU];
 
@@ -97,6 +98,7 @@ void synchronize_rcu(int cpu_id){
                 finished = 0;
         }
     }
+    release(write_lock);
 }
 int context_eq(struct context c1, struct context c2)
 {

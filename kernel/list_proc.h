@@ -23,7 +23,7 @@ void rcu_read_lock();
 
 void rcu_read_unlock();
 
-void synchronize_rcu(int cpu_id);
+void synchronize_rcu(int cpu_id,struct spinlock* write_lock);
 
 int context_eq(struct context c1, struct context c2);
 
