@@ -640,6 +640,7 @@ scheduler(void)
   printf("[LOG SCHEDULER] inside scheduler()\n");
   for(;;){
     // Avoid deadlock by ensuring that devices can interrupt.
+    __sync_lock_test_and_set(&(mycpu()->idle), 1);
     intr_on();
 
     t_node *tmp_node_ptr, *new_node_ptr, *ptr_node_to_free;
@@ -654,9 +655,10 @@ scheduler(void)
 
       if (cpuid()!= 0) // 
           continue;
-      scheduled = 1;
       // printf("[LOG SCHEDULER] process state = %d\n",tmp_node_ptr->process.state );
       if(tmp_node_ptr->process.state == RUNNABLE){
+        scheduled = 1;
+        __sync_lock_test_and_set(&(mycpu()->idle), 0);
         printf("[LOG SCHEDULER] Scheduling this process: \n");
         print_proc(&(tmp_node_ptr->process));
         // Update dello stato a running
@@ -670,7 +672,6 @@ scheduler(void)
           int found = list_update_rcu(&process_list, new_node_ptr,&(tmp_node_ptr->process), &rcu_writers_lock, &ptr_node_to_free);
           if(found != 0) {
             printf("[LOG SCHEDULER] list_update_rcu succeded: \n");
-            knfree(ptr_node_to_free);  
             // rcu_read_unlock();
           }
           else{
@@ -679,6 +680,10 @@ scheduler(void)
           // tmp_node_ptr->process.state = RUNNING;
           c->proc=&(new_node_ptr->process);
           swtch(&c->context, &(new_node_ptr->process.context));
+          
+          synchronize_rcu(cpuid(),&rcu_writers_lock); // funziona? boh
+          knfree(ptr_node_to_free);  
+
           c->proc = 0;
           // release(&tmp_node_ptr->process.lock);
           break;
@@ -707,7 +712,6 @@ scheduler(void)
         che corrisponde a ptr_node_to_free, per come è fatta la struttura
         quindi avrei una doppia free allo stesso indirizzo
         */
-        knfree(ptr_node_to_free);  
         
         // Scheduler operation
         c->proc = &(new_node_ptr->process);    
@@ -717,6 +721,7 @@ scheduler(void)
         // It should have changed its p->state before coming back.
         
         synchronize_rcu(cpuid(),&rcu_writers_lock); // funziona? boh
+        knfree(ptr_node_to_free);  
         
         c->proc = 0;
         
@@ -857,9 +862,8 @@ sleep(void *chan, struct spinlock *lk)
 
   /**/
   rcu_read_lock();
-  printf("[LOG SLEEP] Process list\n");
-  print_list(process_list);
-  printf("[LOG SLEEP] mycpu()->proc\n");
+
+  printf("[LOG SLEEP] mycpu()->proc sleeping on %p\n", chan);
   print_proc(p);
 
   t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
