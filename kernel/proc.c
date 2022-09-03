@@ -206,7 +206,7 @@ freeproc(struct proc *p)
   
   // KSTACKS
   bitmap[p->nKStack] = 0;
-  knfree(p);
+  memset(p, 0, sizeof(struct proc));
 }
 
 // Create a user page table for a given process,
@@ -845,6 +845,7 @@ void
 sleep(void *chan, struct spinlock *lk)
 {
   struct proc *p = myproc();
+  acquire(&p->lock);
   
   // Must acquire p->lock in order to
   // change p->state and then call sched.
@@ -870,6 +871,7 @@ sleep(void *chan, struct spinlock *lk)
   t_node* ptr_node_to_free;
 
   new_node_ptr->process       = *p;
+  memset(new_node_ptr, 0, sizeof(struct spinlock)); // Frreproc per ora è disattivato, mi serve pulire i lock vecchi di un nodo freeato 
   new_node_ptr->process.chan  = chan;
   new_node_ptr->process.state = SLEEPING;
   
@@ -885,6 +887,7 @@ sleep(void *chan, struct spinlock *lk)
     print_list(process_list);
     // rcu_read_unlock();
   }
+  release(&p->lock);
 
   synchronize_rcu(cpuid(),&rcu_writers_lock); // funziona? boh
   // freeproc(&(ptr_node_to_free->process)); 
@@ -922,6 +925,8 @@ sleep(void *chan, struct spinlock *lk)
   ptr_node_to_free = 0;
 
   new_node_ptr->process       = *p;
+  memset(new_node_ptr, 0, sizeof(struct spinlock));// Frreproc per ora è disattivato, mi serve pulire i lock vecchi di un nodo freeato 
+
   new_node_ptr->process.chan  = 0;
   
   int found = list_update_rcu(&process_list, new_node_ptr, p,
@@ -947,7 +952,6 @@ sleep(void *chan, struct spinlock *lk)
 
 
   // Reacquire original lock.
-  // release(&p->lock);
   acquire(lk);
   print_list(process_list);
   rcu_read_unlock();
@@ -965,51 +969,65 @@ wakeup(void *chan)
   continua a looppare fin quando non sveglio qualcuno 
   eccetto per il caso dei tick
   */
- int svegliato=0;
+//  int svegliato=0;
   rcu_read_lock();
-  do{
-    for (tmp_node_ptr = process_list ; tmp_node_ptr != 0; tmp_node_ptr = tmp_node_ptr->next){
+  printf("My process list PRE is %p\n", process_list);
+  for (tmp_node_ptr = process_list ; tmp_node_ptr != 0; tmp_node_ptr = tmp_node_ptr->next){
+    if(chan != &ticks){
+      acquire(&tmp_node_ptr->process.lock);
+      release(&tmp_node_ptr->process.lock);
+    } 
+  }
 
-      if(&(tmp_node_ptr->process) != myproc() && tmp_node_ptr->process.state == SLEEPING && tmp_node_ptr->process.chan == chan){
+  printf("My process list POST is %p\n", process_list);
+
+  for (tmp_node_ptr = process_list ; tmp_node_ptr != 0; tmp_node_ptr = tmp_node_ptr->next){
+    
+    if(&(tmp_node_ptr->process) != myproc() && tmp_node_ptr->process.state == SLEEPING && tmp_node_ptr->process.chan == chan){
+    // update dello stato 
       // update dello stato 
-      svegliato=1;
-      printf("[LOG WAKEUP] Waking up = %p\n", &(tmp_node_ptr->process));
+    // update dello stato 
+      // update dello stato 
+    // update dello stato 
+    // svegliato=1;
+    printf("[LOG WAKEUP] Waking up = %p\n", &(tmp_node_ptr->process));
 
-      t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
-      t_node* ptr_node_to_free;
+    t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
+    t_node* ptr_node_to_free;
 
-      new_node_ptr->process = tmp_node_ptr->process;
-      rcu_read_unlock(); //lo sposteri qui
-      new_node_ptr->process.state = RUNNABLE;
-
-      printf("[LOG LIST_UPDATE:RCU] Called from wakeup\n");
-      ;
-      if(list_update_rcu(&process_list, new_node_ptr, &(tmp_node_ptr->process),
-         &rcu_writers_lock, &ptr_node_to_free) == 0)
-      {
-        printf("[LOG WAKEUP] List_update_rcu failed\n");
+    new_node_ptr->process = tmp_node_ptr->process;
+    memset(new_node_ptr, 0, sizeof(struct spinlock));// Frreproc per ora è disattivato, mi serve pulire i lock vecchi di un nodo freeato 
+    rcu_read_unlock(); //lo sposteri qui
+    new_node_ptr->process.state = RUNNABLE;
+    
+    printf("[LOG LIST_UPDATE:RCU] Called from wakeup\n");
+    ;
+    if(list_update_rcu(&process_list, new_node_ptr, &(tmp_node_ptr->process),
+        &rcu_writers_lock, &ptr_node_to_free) == 0)
+    {
+      printf("[LOG WAKEUP] List_update_rcu failed\n");
+    }
+    else{
+      printf("[LOG WAKEUP] List_update_rcu completed\n");
+      struct proc *p = myproc();
+      if( p == 0){
+        printf("no process running\n");
       }
       else{
-        printf("[LOG WAKEUP] List_update_rcu completed\n");
-        struct proc *p = myproc();
-        if( p == 0){
-          printf("no process running\n");
-        }
-        else{
-          print_proc(myproc());
-        }
-        print_list(process_list);
+        print_proc(myproc());
       }
-      synchronize_rcu(cpuid(),&rcu_writers_lock); // funziona? boh
-      // freeproc(&(ptr_node_to_free->process));
-      knfree(ptr_node_to_free);
-
+      print_list(process_list);
     }
-      else rcu_read_unlock();
+    synchronize_rcu(cpuid(),&rcu_writers_lock); // funziona? boh
+    // freeproc(&(ptr_node_to_free->process));
+    knfree(ptr_node_to_free);
 
-      rcu_read_lock();
-    }
-  }while(chan!=&ticks && !svegliato);
+  }
+    else rcu_read_unlock();
+
+    rcu_read_lock();
+  }
+
 
   rcu_read_unlock();
 }
