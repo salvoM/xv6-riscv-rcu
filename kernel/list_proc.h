@@ -11,7 +11,7 @@
 
 
 typedef struct s_node{
-    struct proc process;
+    struct proc* process;
     struct s_node* next;
 }t_node;
 

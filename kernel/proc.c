@@ -39,7 +39,7 @@ static int nextpid = 1;
 struct spinlock pid_lock;
 
 extern void forkret(void);
-static void freeproc(struct proc *p);
+static void freeproc(struct proc *p,int flag);
 
 extern char trampoline[]; // trampoline.S
 
@@ -126,8 +126,7 @@ allocpid() {
 static struct proc*
 allocproc(void)
 {
-  struct proc* tmp_proc_ptr;
-  tmp_proc_ptr = (struct proc*)knmalloc((sizeof(struct proc)));
+  struct proc* tmp_proc_ptr = (struct proc*)knmalloc((sizeof(struct proc)));
   
   
   tmp_proc_ptr->pid = allocpid();
@@ -194,18 +193,20 @@ allocproc(void)
 // including user pages.
 // p->lock must be held.
 static void
-freeproc(struct proc *p)
+freeproc(struct proc *p,int flag)
 {
   printf("[LOG FREEPROC] proc @ %p\n", p);
   print_proc(p);
 
-  if(p->trapframe)
-    kfree((void*)p->trapframe);
-  if(p->pagetable)
-    proc_freepagetable(p->pagetable, p->sz);
-  
+  if(flag==1){
+    if(p->trapframe)
+      kfree((void*)p->trapframe);
+    if(p->pagetable)
+      proc_freepagetable(p->pagetable, p->sz);
+    bitmap[p->nKStack] = 0;
+  }
   // KSTACKS
-  bitmap[p->nKStack] = 0;
+  
   memset(p, 0, sizeof(struct proc));
 }
 
@@ -295,7 +296,7 @@ userinit(void)
   t_node* tmp_node_ptr = (t_node*)knmalloc(sizeof(t_node));
 
   //Riempio il nodo
-  tmp_node_ptr->process = *p;
+  tmp_node_ptr->process = p;
   tmp_node_ptr->next = 0;
 
   /* Here the process is ready to go, the node is ready to be added to the list*/
@@ -315,27 +316,29 @@ growproc(int n)
   uint sz;
   t_node* node_ptr_to_free;
   t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
+  new_node_ptr->process= (struct proc*)knmalloc(sizeof(struct proc));
 
-  struct proc* tmp_proc_ptr = myproc();
-  new_node_ptr->process     = *tmp_proc_ptr;
-  sz                        = tmp_proc_ptr->sz;
+  struct proc* tmp_proc_ptr   = myproc();
+  *new_node_ptr->process      = *tmp_proc_ptr;
+  sz                          = tmp_proc_ptr->sz;
   
   if(n > 0){
-    if((sz = uvmalloc(new_node_ptr->process.pagetable, sz, sz + n)) == 0) {
+    if((sz = uvmalloc(new_node_ptr->process->pagetable, sz, sz + n)) == 0) {
       return -1;
     }
   } else if(n < 0){
-    sz = uvmdealloc(new_node_ptr->process.pagetable, sz, sz + n);
+    sz = uvmdealloc(new_node_ptr->process->pagetable, sz, sz + n);
   }
-  new_node_ptr->process.sz = sz;
+  new_node_ptr->process->sz = sz;
   printf("[LOG LIST_UPDATE:RCU] Called from growproc\n");
   if(list_update_rcu(&process_list, new_node_ptr, tmp_proc_ptr, &rcu_writers_lock, &node_ptr_to_free) == 0){
     panic("proc disappeared");
   }
   /* Reclamation phase */
   synchronize_rcu(cpuid(),&rcu_writers_lock); // funziona? boh
+  freeproc(node_ptr_to_free->process,0);
   knfree(node_ptr_to_free);
-  mycpu()->proc = &(new_node_ptr->process);
+  mycpu()->proc = (new_node_ptr->process);
   /* End Reclamation phase */
 
   return 0;
@@ -361,7 +364,7 @@ fork(void)
 
   // Copy user memory from parent to child.
   if(uvmcopy(process.pagetable, np->pagetable, process.sz) < 0){
-    freeproc(np);
+    freeproc(np,0);
     return -1;
   }
   np->sz = process.sz;
@@ -396,7 +399,7 @@ fork(void)
   t_node* tmp_node_ptr = (t_node*)knmalloc(sizeof(t_node));
 
   //Riempio il nodo
-  tmp_node_ptr->process = *np;
+  tmp_node_ptr->process = np;
   tmp_node_ptr->next = 0;
 
   /* Here the process is ready to go, the node is ready to be added to the list*/
@@ -425,16 +428,18 @@ reparent(struct proc *p)
   for (tmp_node_ptr = process_list ; tmp_node_ptr != 0; tmp_node_ptr = tmp_node_ptr->next){
     
     
-    if(tmp_node_ptr->process.p_uid == p->uid){
+    if(tmp_node_ptr->process->p_uid == p->uid){
     
       t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
+      new_node_ptr->process = (struct proc*)knmalloc(sizeof(struct proc));
+
       
-      new_node_ptr->process = tmp_node_ptr->process;
+      *new_node_ptr->process = *tmp_node_ptr->process;
       rcu_read_unlock(); //lo sposteri qui
       
       /* */
-      new_node_ptr->process.parent = initproc;
-      new_node_ptr->process.p_uid  = 0; // qui ci andrebbe l'uid di initproc, che forse è 0
+      new_node_ptr->process->parent = initproc;
+      new_node_ptr->process->p_uid  = 0; // qui ci andrebbe l'uid di initproc, che forse è 0
       /* */
       
       printf("[LOG LIST_UPDATE:RCU] Called from reparent\n");
@@ -442,7 +447,7 @@ reparent(struct proc *p)
       if(t != 1) printf("list update died in reparent\n");
       synchronize_rcu(cpuid(),&rcu_writers_lock); // funziona? boh
       
-      // freeproc(&(ptr_node_to_free->process));
+      freeproc((ptr_node_to_free->process),0);
       knfree(ptr_node_to_free);
       
       // wakeup(initproc); // C'è da svegliare initproc, questo al 90% è rotto
@@ -461,15 +466,17 @@ struct proc* closeFile(struct proc* p){
   printf("[LOG closeFile] **********\n");
   t_node* node_ptr_to_free;
   t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
+  new_node_ptr->process = (struct proc*)knmalloc(sizeof(struct proc));
+
   
-  new_node_ptr->process = *p;
+  *new_node_ptr->process = *p;
   new_node_ptr->next    = 0;
   for(int fd = 0; fd < NOFILE; fd++){
-    if(new_node_ptr->process.ofile[fd]){
-      struct file *f = new_node_ptr->process.ofile[fd];
+    if(new_node_ptr->process->ofile[fd]){
+      struct file *f = new_node_ptr->process->ofile[fd];
       fileclose(f);
       //? non dovrebbe essere necessario eseguire quest'operazione poiché alla fine facciamo la free
-      new_node_ptr->process.ofile[fd] = 0;
+      new_node_ptr->process->ofile[fd] = 0;
     }
   }
   printf("[LOG LIST_UPDATE:RCU] Called from closefile\n");
@@ -477,9 +484,9 @@ struct proc* closeFile(struct proc* p){
         panic("[LOG closeFile] proc disappeared");
   }
   synchronize_rcu(cpuid(),&rcu_writers_lock); // funziona? boh
-  // freeproc(&(node_ptr_to_free->process));
+  freeproc((node_ptr_to_free->process),0);
   knfree(node_ptr_to_free);
-  return &(new_node_ptr->process);
+  return (new_node_ptr->process);
 }
 
 // Exit the current process.  Does not return.
@@ -518,12 +525,14 @@ exit(int status)
 
   t_node* node_ptr_to_free;
   t_node* new_node_ptr=(t_node*)knmalloc(sizeof(t_node));
+  new_node_ptr->process = (struct proc*)knmalloc(sizeof(struct proc));
+
 
   printf("[LOG LIST_UPDATE:RCU] p = %p, process_list = %p, new_node_ptr = %p\n", p, process_list, new_node_ptr);
 
-  new_node_ptr->process         = *p;  
-  new_node_ptr->process.xstate  = status;
-  new_node_ptr->process.state   = ZOMBIE;
+  *new_node_ptr->process         = *p;  
+  new_node_ptr->process->xstate  = status;
+  new_node_ptr->process->state   = ZOMBIE;
   
   printf("[LOG LIST_UPDATE:RCU] Called from exit\n");
   printf("[LOG LIST_UPDATE:RCU] p = %p, process_list = %p, new_node_ptr = %p\n", p, process_list, new_node_ptr);
@@ -533,10 +542,10 @@ exit(int status)
         panic("[LOG reparent] proc disappeared");
   }
   else{
-    mycpu()->proc = &(new_node_ptr->process);
+    mycpu()->proc = (new_node_ptr->process);
   }
   synchronize_rcu(cpuid(),&rcu_writers_lock); // funziona? boh
-  // freeproc(&(node_ptr_to_free->process));
+  freeproc((node_ptr_to_free->process),0);
   knfree(node_ptr_to_free);
 
   release(&wait_lock);
@@ -565,12 +574,12 @@ wait(uint64 addr)
   for(;;){
     havekids = 0;
     for (ptr_index_node = process_list ; ptr_index_node != 0; ptr_index_node = ptr_index_node->next){
-      if(ptr_index_node->process.p_uid == p->uid){
+      if(ptr_index_node->process->p_uid == p->uid){
         havekids = 1;
-        if(ptr_index_node->process.state == ZOMBIE){
+        if(ptr_index_node->process->state == ZOMBIE){
           // We need to update the parent
           // and remove this child
-          pid = ptr_index_node->process.pid;
+          pid = ptr_index_node->process->pid;
 
           //update the parent
           // t_node* ptr_new_node = (t_node*)knmalloc(sizeof(t_node));
@@ -578,8 +587,8 @@ wait(uint64 addr)
           // ptr_new_node->process = *p;
           // ptr_new_node->next    = 0; 
 
-          if(addr != 0 && copyout(p->pagetable, addr, (char *)&(ptr_index_node->process.xstate),
-                                  sizeof(ptr_index_node->process.xstate)) < 0) {
+          if(addr != 0 && copyout(p->pagetable, addr, (char *)&(ptr_index_node->process->xstate),
+                                  sizeof(ptr_index_node->process->xstate)) < 0) {
             /* if something went wrong */
             // knfree(ptr_new_node);
             release(&wait_lock);
@@ -602,7 +611,7 @@ wait(uint64 addr)
           // Delete the zombie child from the list and reclaim it
           list_del_rcu(&process_list, ptr_index_node, &rcu_writers_lock);
           synchronize_rcu(cpuid(),&rcu_writers_lock); // funziona? boh
-          // freeproc(&(ptr_index_node->process));
+          freeproc((ptr_index_node->process),1);
           knfree(ptr_index_node);
           release(&wait_lock);
 
@@ -656,20 +665,21 @@ scheduler(void)
       if (cpuid()!= 0) // 
           continue;
       // printf("[LOG SCHEDULER] process state = %d\n",tmp_node_ptr->process.state );
-      if(tmp_node_ptr->process.state == RUNNABLE){
+      if(tmp_node_ptr->process->state == RUNNABLE){
         scheduled = 1;
         __sync_lock_test_and_set(&(mycpu()->idle), 0);
         printf("[LOG SCHEDULER] Scheduling this process: \n");
-        print_proc(&(tmp_node_ptr->process));
+        print_proc((tmp_node_ptr->process));
         // Update dello stato a running
-        if(tmp_node_ptr->process.pid==1){
+        if(tmp_node_ptr->process->pid==1){
           // acquire(&tmp_node_ptr->process.lock);
 
           new_node_ptr                = (t_node*)knmalloc(sizeof(t_node));
-          new_node_ptr->process       = tmp_node_ptr->process;
-          new_node_ptr->process.state = RUNNING;
+          new_node_ptr->process        =(struct proc*)knmalloc(sizeof(struct proc));
+          *new_node_ptr->process       = *tmp_node_ptr->process;
+          new_node_ptr->process->state = RUNNING;
 
-          int found = list_update_rcu(&process_list, new_node_ptr,&(tmp_node_ptr->process), &rcu_writers_lock, &ptr_node_to_free);
+          int found = list_update_rcu(&process_list, new_node_ptr,(tmp_node_ptr->process), &rcu_writers_lock, &ptr_node_to_free);
           if(found != 0) {
             printf("[LOG SCHEDULER] list_update_rcu succeded: \n");
             // rcu_read_unlock();
@@ -678,10 +688,11 @@ scheduler(void)
             panic("[LOG SCHEDULER] list_update_rcu failed \n");
           }
           // tmp_node_ptr->process.state = RUNNING;
-          c->proc=&(new_node_ptr->process);
-          swtch(&c->context, &(new_node_ptr->process.context));
+          c->proc=(new_node_ptr->process);
+          swtch(&c->context, &(new_node_ptr->process->context));
           
           synchronize_rcu(cpuid(),&rcu_writers_lock); // funziona? boh
+          freeproc(ptr_node_to_free->process,0);
           knfree(ptr_node_to_free);  
 
           c->proc = 0;
@@ -690,20 +701,20 @@ scheduler(void)
         }
         printf("[LOG SCHEDULER] Scheduler non-init zone \n");
 
-        new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
+        new_node_ptr                = (t_node*)knmalloc(sizeof(t_node));
+        new_node_ptr->process        =(struct proc*)knmalloc(sizeof(struct proc));;
         
-
-        new_node_ptr->process = tmp_node_ptr->process;
+        *new_node_ptr->process = *tmp_node_ptr->process;
         rcu_read_unlock(); // lo metterei qui
         
-        new_node_ptr->process.state = RUNNING;
+        new_node_ptr->process->state = RUNNING;
       
 
         printf("[LOG LIST_UPDATE:RCU] Called from scheduler\n");
         printf("[LOG LIST_UPDATE:RCU] (%p,%p,%p,%p,%p)\n",
-        &process_list, new_node_ptr, &(tmp_node_ptr->process), &rcu_writers_lock, &ptr_node_to_free);
+        &process_list, new_node_ptr, (tmp_node_ptr->process), &rcu_writers_lock, &ptr_node_to_free);
         
-        list_update_rcu(&process_list, new_node_ptr, &(tmp_node_ptr->process), &rcu_writers_lock, &ptr_node_to_free);
+        list_update_rcu(&process_list, new_node_ptr, (tmp_node_ptr->process), &rcu_writers_lock, &ptr_node_to_free);
 
         // freeproc(&(ptr_node_to_free->process));
         
@@ -714,13 +725,14 @@ scheduler(void)
         */
         
         // Scheduler operation
-        c->proc = &(new_node_ptr->process);    
+        c->proc = (new_node_ptr->process);    
 
-        swtch(&c->context, &(new_node_ptr->process.context));
+        swtch(&c->context, &(new_node_ptr->process->context));
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         
         synchronize_rcu(cpuid(),&rcu_writers_lock); // funziona? boh
+        freeproc(ptr_node_to_free->process,0);
         knfree(ptr_node_to_free);  
         
         c->proc = 0;
@@ -793,11 +805,12 @@ yield(void)
   // acquire(&p->lock);
   
   /**/
-  t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
+  t_node* new_node_ptr         = (t_node*)knmalloc(sizeof(t_node));
   t_node* ptr_node_to_free;
+  new_node_ptr->process        =(struct proc*)knmalloc(sizeof(struct proc));
 
-  new_node_ptr->process       = *p;
-  new_node_ptr->process.state = RUNNABLE;
+  *new_node_ptr->process       = *p;
+  new_node_ptr->process->state = RUNNABLE;
 
   if(list_update_rcu(&process_list, new_node_ptr, p,
                   &rcu_writers_lock, &ptr_node_to_free) 
@@ -808,7 +821,8 @@ yield(void)
   else
   {
     printf("[LOG YIELD] List_update_rcu succeded\n");
-    mycpu()->proc = &(new_node_ptr->process);
+    mycpu()->proc = (new_node_ptr->process);
+    freeproc(ptr_node_to_free->process,0);
     knfree(ptr_node_to_free);
   }
   /**/
@@ -867,13 +881,14 @@ sleep(void *chan, struct spinlock *lk)
   printf("[LOG SLEEP] mycpu()->proc sleeping on %p\n", chan);
   print_proc(p);
 
-  t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
+  t_node* new_node_ptr         = (t_node*)knmalloc(sizeof(t_node));
+  new_node_ptr->process        = (struct proc*)knmalloc(sizeof(struct proc));
   t_node* ptr_node_to_free;
 
-  new_node_ptr->process       = *p;
-  memset(new_node_ptr, 0, sizeof(struct spinlock)); // Frreproc per ora è disattivato, mi serve pulire i lock vecchi di un nodo freeato 
-  new_node_ptr->process.chan  = chan;
-  new_node_ptr->process.state = SLEEPING;
+  *new_node_ptr->process       = *p;
+  //memset(new_node_ptr, 0, sizeof(struct spinlock)); // Frreproc per ora è disattivato, mi serve pulire i lock vecchi di un nodo freeato 
+  new_node_ptr->process->chan  = chan;
+  new_node_ptr->process->state = SLEEPING;
   
   if(list_update_rcu(&process_list, new_node_ptr, p,
                   &rcu_writers_lock, &ptr_node_to_free) == 0)
@@ -883,14 +898,14 @@ sleep(void *chan, struct spinlock *lk)
   else
   {
     printf("[LOG SLEEP] List_update_rcu succeded\n");
-    mycpu()->proc = &(new_node_ptr->process);
+    mycpu()->proc = (new_node_ptr->process);
     print_list(process_list);
     // rcu_read_unlock();
   }
   release(&p->lock);
 
   synchronize_rcu(cpuid(),&rcu_writers_lock); // funziona? boh
-  // freeproc(&(ptr_node_to_free->process)); 
+  freeproc((ptr_node_to_free->process),0); 
 
   // mycpu()->proc = &(new_node_ptr->process);
   // printf("[LOG SLEEP] Now running this\n");
@@ -921,15 +936,17 @@ sleep(void *chan, struct spinlock *lk)
   */
   printf("[LOG SLEEP] chan %p, WOKE UP!\n", chan);
   p = myproc();
-  new_node_ptr     = (t_node*)knmalloc(sizeof(t_node));
+  t_node* new_node_ptr2        = (t_node*)knmalloc(sizeof(t_node));
+  new_node_ptr2->process        = (struct proc*)knmalloc(sizeof(struct proc));
+
   ptr_node_to_free = 0;
 
-  new_node_ptr->process       = *p;
-  memset(new_node_ptr, 0, sizeof(struct spinlock));// Frreproc per ora è disattivato, mi serve pulire i lock vecchi di un nodo freeato 
+  *new_node_ptr2->process       = *p;
+  //memset(new_node_ptr, 0, sizeof(struct spinlock));// Frreproc per ora è disattivato, mi serve pulire i lock vecchi di un nodo freeato 
 
-  new_node_ptr->process.chan  = 0;
+  new_node_ptr2->process->chan  = 0;
   
-  int found = list_update_rcu(&process_list, new_node_ptr, p,
+  int found = list_update_rcu(&process_list, new_node_ptr2, p,
                   &rcu_writers_lock, &ptr_node_to_free);
   
   if(found == 0){
@@ -937,7 +954,7 @@ sleep(void *chan, struct spinlock *lk)
   }
 
   synchronize_rcu(cpuid(),&rcu_writers_lock); // funziona? boh
-  // freeproc(&(ptr_node_to_free->process)); 
+  freeproc(ptr_node_to_free->process,0); 
   
   /* Perchè ho commentato knfree
   Perchè la freeproc fa una knfree di &(ptr_node_to_free->process)
@@ -946,7 +963,7 @@ sleep(void *chan, struct spinlock *lk)
   */
   knfree(ptr_node_to_free);  
 
-  mycpu()->proc = &(new_node_ptr->process);
+  mycpu()->proc = (new_node_ptr->process);
 
   /**/
 
@@ -974,8 +991,8 @@ wakeup(void *chan)
   printf("My process list PRE is %p\n", process_list);
   for (tmp_node_ptr = process_list ; tmp_node_ptr != 0; tmp_node_ptr = tmp_node_ptr->next){
     if(chan != &ticks){
-      acquire(&tmp_node_ptr->process.lock);
-      release(&tmp_node_ptr->process.lock);
+      acquire(&tmp_node_ptr->process->lock);
+      release(&tmp_node_ptr->process->lock);
     } 
   }
 
@@ -983,7 +1000,7 @@ wakeup(void *chan)
 
   for (tmp_node_ptr = process_list ; tmp_node_ptr != 0; tmp_node_ptr = tmp_node_ptr->next){
     
-    if(&(tmp_node_ptr->process) != myproc() && tmp_node_ptr->process.state == SLEEPING && tmp_node_ptr->process.chan == chan){
+    if((tmp_node_ptr->process) != myproc() && tmp_node_ptr->process->state == SLEEPING && tmp_node_ptr->process->chan == chan){
     // update dello stato 
       // update dello stato 
     // update dello stato 
@@ -995,14 +1012,14 @@ wakeup(void *chan)
     t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
     t_node* ptr_node_to_free;
 
-    new_node_ptr->process = tmp_node_ptr->process;
-    memset(new_node_ptr, 0, sizeof(struct spinlock));// Frreproc per ora è disattivato, mi serve pulire i lock vecchi di un nodo freeato 
+    *new_node_ptr->process = *tmp_node_ptr->process;
+    //memset(new_node_ptr, 0, sizeof(struct spinlock));// Frreproc per ora è disattivato, mi serve pulire i lock vecchi di un nodo freeato 
     rcu_read_unlock(); //lo sposteri qui
-    new_node_ptr->process.state = RUNNABLE;
+    new_node_ptr->process->state = RUNNABLE;
     
     printf("[LOG LIST_UPDATE:RCU] Called from wakeup\n");
     ;
-    if(list_update_rcu(&process_list, new_node_ptr, &(tmp_node_ptr->process),
+    if(list_update_rcu(&process_list, new_node_ptr, (tmp_node_ptr->process),
         &rcu_writers_lock, &ptr_node_to_free) == 0)
     {
       printf("[LOG WAKEUP] List_update_rcu failed\n");
@@ -1019,7 +1036,7 @@ wakeup(void *chan)
       print_list(process_list);
     }
     synchronize_rcu(cpuid(),&rcu_writers_lock); // funziona? boh
-    // freeproc(&(ptr_node_to_free->process));
+    freeproc((ptr_node_to_free->process),0);
     knfree(ptr_node_to_free);
 
   }
@@ -1043,26 +1060,26 @@ kill(int pid)
   rcu_read_lock();
   for (tmp_node_ptr = process_list ; tmp_node_ptr != 0; tmp_node_ptr = tmp_node_ptr->next){
 
-    if(tmp_node_ptr->process.pid == pid){
+    if(tmp_node_ptr->process->pid == pid){
       // update dello stato 
 
       t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
       t_node* ptr_node_to_free;
 
-      new_node_ptr->process = tmp_node_ptr->process;
+      *new_node_ptr->process = *tmp_node_ptr->process;
       rcu_read_unlock(); //lo sposteri qui
       
-      new_node_ptr->process.killed = 1;
+      new_node_ptr->process->killed = 1;
 
-      if(new_node_ptr->process.state == SLEEPING){
+      if(new_node_ptr->process->state == SLEEPING){
         //Se sta dormendo sveglialo
-        new_node_ptr->process.state = RUNNABLE;
+        new_node_ptr->process->state = RUNNABLE;
       }
 
       printf("[LOG LIST_UPDATE:RCU] Called from kill\n");
-      list_update_rcu(&process_list, new_node_ptr, &(tmp_node_ptr->process), &rcu_writers_lock, &ptr_node_to_free);
+      list_update_rcu(&process_list, new_node_ptr, (tmp_node_ptr->process), &rcu_writers_lock, &ptr_node_to_free);
       synchronize_rcu(cpuid(),&rcu_writers_lock); // funziona? boh
-      //freeproc(&(ptr_node_to_free->process));
+      freeproc((ptr_node_to_free->process),0);
       knfree(ptr_node_to_free);
       return 0;
     }
@@ -1128,11 +1145,11 @@ procdump(void)
   rcu_read_lock();
   for (tmp_node_ptr = process_list ; tmp_node_ptr != 0; tmp_node_ptr = tmp_node_ptr->next){
 
-    if(tmp_node_ptr->process.state >= 0 && tmp_node_ptr->process.state < NELEM(states) && states[tmp_node_ptr->process.state])
-          state = states[tmp_node_ptr->process.state];
+    if(tmp_node_ptr->process->state >= 0 && tmp_node_ptr->process->state < NELEM(states) && states[tmp_node_ptr->process->state])
+          state = states[tmp_node_ptr->process->state];
     else
           state = "???";
-    printf("%d %s %s", tmp_node_ptr->process.pid, state, tmp_node_ptr->process.name);
+    printf("%d %s %s", tmp_node_ptr->process->pid, state, tmp_node_ptr->process->name);
     printf("\n");
 
     rcu_read_unlock();

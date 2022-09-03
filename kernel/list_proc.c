@@ -230,7 +230,7 @@ int list_update_rcu(t_list* list_ptr, t_node* new_node_ptr, struct proc* proc_pt
     rcu_read_lock();
     t_node* current_node_ptr = rcu_dereference_pointer(*list_ptr);
 
-    if(&(current_node_ptr->process) == proc_ptr){
+    if((current_node_ptr->process->pid) == proc_ptr->pid){
         // Found
         new_node_ptr->next = current_node_ptr->next;
         
@@ -250,7 +250,7 @@ int list_update_rcu(t_list* list_ptr, t_node* new_node_ptr, struct proc* proc_pt
 
     while(current_node_ptr != 0 && found == 0){
         // doppi puntatori per fare update
-        if(&(current_node_ptr->process) == proc_ptr){
+        if((current_node_ptr->process->pid) == proc_ptr->pid){
             //Found node relative to the process
 
             new_node_ptr->next = current_node_ptr->next; // non atomico
@@ -275,7 +275,7 @@ int list_del_from_proc_rcu(t_list* list_ptr, struct proc* proc_ptr, struct spinl
     rcu_read_lock();
     t_node* current_node_ptr = rcu_dereference_pointer(*list_ptr);
 
-    if(&(current_node_ptr->process) == proc_ptr){
+    if((current_node_ptr->process->pid) == proc_ptr->pid){
         // Found        
         *ptr_to_free = current_node_ptr;
         
@@ -291,7 +291,7 @@ int list_del_from_proc_rcu(t_list* list_ptr, struct proc* proc_ptr, struct spinl
 
     while(current_node_ptr != 0 && found == 0){
         // doppi puntatori per fare update
-        if(&(current_node_ptr->process) == proc_ptr){
+        if((current_node_ptr->process->pid) == proc_ptr->pid){
             //Found node relative to the process
 
             
@@ -331,7 +331,7 @@ void print_list(t_list list){
     printf("[PROCESS LIST *Start] \n");
     while(!is_empty(list)){
         printf("%d)\t", count);
-        print_proc(&(list->process));
+        print_proc((list->process));
         count++;
         list = list->next;
     }
