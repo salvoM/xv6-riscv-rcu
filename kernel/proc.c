@@ -898,30 +898,22 @@ sleep(void *chan, struct spinlock *lk)
   else
   {
     printf("[LOG SLEEP] List_update_rcu succeded\n");
-    mycpu()->proc = (new_node_ptr->process);
-    print_list(process_list);
     // rcu_read_unlock();
   }
   release(&p->lock);
 
   synchronize_rcu(cpuid(),&rcu_writers_lock); // funziona? boh
   freeproc((ptr_node_to_free->process),0); 
-
-  // mycpu()->proc = &(new_node_ptr->process);
-  // printf("[LOG SLEEP] Now running this\n");
-  // print_proc((mycpu()->proc));
-  
-
-  /* Perchè ho commentato knfree
-  Perchè la freeproc fa una knfree di &(ptr_node_to_free->process)
-  che corrisponde a ptr_node_to_free, per come è fatta la struttura
-  quindi avrei una doppia free allo stesso indirizzo.
-  */
   knfree(ptr_node_to_free);  
 
   /**/
   printf("[LOG SLEEP] Calling sched()\n");
   // intr_off();
+  mycpu()->proc = (new_node_ptr->process);
+  
+  // release(&new_node_ptr->process->lock);
+  memset(new_node_ptr->process, 0, sizeof(struct spinlock));
+  // This is like releasing the lock, but does not mess with the noff depth!
   sched();
 
   // Tidy up.
