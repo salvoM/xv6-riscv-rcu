@@ -1013,6 +1013,7 @@ wakeup(void *chan)
       printf("[LOG WAKEUP] Waking up = %p\n", &(tmp_node_ptr->process));
 
       t_node* new_node_ptr = (t_node*)knmalloc(sizeof(t_node));
+      new_node_ptr->process= (struct proc*)knmalloc(sizeof(struct proc));
       t_node* ptr_node_to_free;
 
       *new_node_ptr->process = *tmp_node_ptr->process;
