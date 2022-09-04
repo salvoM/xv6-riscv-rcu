@@ -963,7 +963,7 @@ sleep(void *chan, struct spinlock *lk)
   */
   knfree(ptr_node_to_free);  
 
-  mycpu()->proc = (new_node_ptr->process);
+  mycpu()->proc = (new_node_ptr2->process);
 
   /**/
 
