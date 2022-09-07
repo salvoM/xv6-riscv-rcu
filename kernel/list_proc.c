@@ -101,7 +101,7 @@ int context_eq(struct context c1, struct context c2)
 void rcu_assign_pointer(t_list* list_ptr_dst, t_node* node_ptr_src){
    
     __sync_synchronize();
-    //__atomic_store(*list_ptr_dst,node_ptr_src,__ATOMIC_RELAXED);
+    //__atomic_load(*list_ptr_dst,node_ptr_src,__ATOMIC_RELAXED);
     *list_ptr_dst = node_ptr_src;
 }
 
