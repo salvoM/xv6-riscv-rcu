@@ -38,28 +38,6 @@ void synchronize_rcu(int cpu_id,struct spinlock* write_lock){
     as required. 
     */
 
-    // int cpu_0 = 1;
-    // int cpu_1 = 1;
-    // int cpu_2 = 1;
-    // int id = -1;
-    // while(1){
-    //     push_off();
-    //     id = cpuid();
-    //     pop_off();
-    //     if( cpu_0 && id == 0){
-    //         cpu_0--;
-    //     }
-    //     if( cpu_1 && id == 1){
-    //         cpu_1--;
-    //     }
-    //     if( cpu_2 && id == 2){
-    //         cpu_2--;
-    //     }
-    //     __sync_synchronize();
-    //     if( cpu_0 == 0 && cpu_1 == 0 && cpu_2 == 0){
-    //         return;
-    //     }
-    // }
     acquire(write_lock);
     int finished = 0;
     int target_value_achieved[NCPU];
@@ -121,16 +99,12 @@ int context_eq(struct context c1, struct context c2)
 }
 
 void rcu_assign_pointer(t_list* list_ptr_dst, t_node* node_ptr_src){
-    //rcu_assign_pointer(gobal_ptr, ptr);
-    // Provo a fare solo con le barriers
-    /*
-    #define rcu_assign_pointer(p, v) \
-    ({ \
-            smp_store_release(&(p), (v)); \
-    })
-    */
+    
     __sync_synchronize();
-    *list_ptr_dst = node_ptr_src;
+    // this should work as atomic assignment
+     __atomic_store(*list_ptr_dst,node_ptr_src,__ATOMIC_RELAXED);
+
+    //*list_ptr_dst = node_ptr_src;
 }
 
 t_node* rcu_dereference_pointer(t_node* node_ptr){
@@ -142,16 +116,6 @@ t_node* rcu_dereference_pointer(t_node* node_ptr){
         *
         * This ensures that the pointer copy is invariant thorough the whole critical
         * section
-    */
-
-    /*
-        rcu_read_lock();
-        p = rcu_dereference(head.next);
-        rcu_read_unlock();
-        x = p->address; // BUG!!! 
-        rcu_read_lock();
-        y = p->data;    // BUG!!! 
-        rcu_read_unlock();
     */
     __sync_synchronize();
     return node_ptr;
