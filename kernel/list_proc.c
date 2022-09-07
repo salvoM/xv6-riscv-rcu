@@ -121,14 +121,7 @@ int context_eq(struct context c1, struct context c2)
 }
 
 void rcu_assign_pointer(t_list* list_ptr_dst, t_node* node_ptr_src){
-    //rcu_assign_pointer(gobal_ptr, ptr);
-    // Provo a fare solo con le barriers
-    /*
-    #define rcu_assign_pointer(p, v) \
-    ({ \
-            smp_store_release(&(p), (v)); \
-    })
-    */
+   
     __sync_synchronize();
     *list_ptr_dst = node_ptr_src;
 }
@@ -142,16 +135,6 @@ t_node* rcu_dereference_pointer(t_node* node_ptr){
         *
         * This ensures that the pointer copy is invariant thorough the whole critical
         * section
-    */
-
-    /*
-        rcu_read_lock();
-        p = rcu_dereference(head.next);
-        rcu_read_unlock();
-        x = p->address; // BUG!!! 
-        rcu_read_lock();
-        y = p->data;    // BUG!!! 
-        rcu_read_unlock();
     */
     __sync_synchronize();
     return node_ptr;
@@ -193,7 +176,6 @@ void list_del_rcu(t_list* list_ptr, t_node* node_ptr, struct spinlock* writers_l
 
     acquire(writers_lock_ptr);
 
-    // Dereferencing like this? W/o read_lock is it ok?
     t_node* tmp_node_ptr = rcu_dereference_pointer(*list_ptr);
 
     if(tmp_node_ptr == node_ptr){
@@ -236,7 +218,7 @@ int list_update_rcu(t_list* list_ptr, t_node* new_node_ptr, struct proc* proc_pt
         
         *ptr_to_free = current_node_ptr;
 
-        rcu_assign_pointer(list_ptr, new_node_ptr); // va fatta atomicamente
+        rcu_assign_pointer(list_ptr, new_node_ptr); 
         rcu_read_unlock();
         release(writers_lock_ptr);
         return 1;
@@ -339,16 +321,3 @@ void print_list(t_list list){
 
 }
 
-// void insert_at_head(struct proc p, t_list* list_ptr){        
-    //    Creating the node
-    //     t_node* node_ptr = (t_node*)knmalloc(sizeof(t_node));
-    //     if(node_ptr == 0)
-    //         panic("insert_at_head - knmalloc");
-
-    //    Filling the node
-    //     node_ptr->process = p;
-    //     node_ptr->next = *list_ptr;
-        
-    //      Update the head of the list
-    //     *list_ptr = node_ptr;
-// }
