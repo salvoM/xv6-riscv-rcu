@@ -242,16 +242,3 @@ void print_list(t_list list){
 
 }
 
-// void insert_at_head(struct proc p, t_list* list_ptr){        
-    //    Creating the node
-    //     t_node* node_ptr = (t_node*)knmalloc(sizeof(t_node));
-    //     if(node_ptr == 0)
-    //         panic("insert_at_head - knmalloc");
-
-    //    Filling the node
-    //     node_ptr->process = p;
-    //     node_ptr->next = *list_ptr;
-        
-    //      Update the head of the list
-    //     *list_ptr = node_ptr;
-// }
