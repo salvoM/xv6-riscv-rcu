@@ -1,0 +1,114 @@
+\documentclass{article}
+
+% Language setting
+% Replace `english' with e.g. `spanish' to change the document language
+\usepackage[english]{babel}
+
+% Set page size and margins
+% Replace `letterpaper' with `a4paper' for UK/EU standard size
+\usepackage[letterpaper,top=2cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+
+% Useful packages
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+
+\author{Salvatore Maccarrone}
+\author{S.Maccarone, N.Gallo}
+\date{\today}
+\title{Implement RCU in xv6}
+
+
+\begin{document}
+\maketitle
+
+
+\section{Project Data}
+\begin{itemize}
+\item 
+  Project supervisor(s):Vittorio Zaccaria
+\item 
+Describe in this table the group that is delivering this project:
+
+\begin{center}
+\begin{tabular}{lll}
+Last and first name & Person code & Email address\\
+\hline
+  Salvatore Maccarone & 10740276 & salvatore.maccarrone@mail.polimi.it \\
+  Nicolas Gallo & 10603572 & nicolas.gallo@mail.polimi.it                     
+\end{tabular}
+\end{center}
+\item
+Describe here how development tasks have been subdivided among members
+of the group
+
+\end{itemize}
+
+
+
+\section{Project Description}
+
+\begin{itemize}
+\item What is your project about?
+\item Why it is important for the AOS course?
+\end{itemize}
+
+\subsection{Design Implementation}
+
+In xv6 the list of process is statically allocated as an array of size 64, meaning that only 64 process can be active at the same time. To reach its goal the RCU scheduler allows to have more than one copy of a single item of the list, in this case a process. The old and the new version coexist for a certain period, but with the constraint that anyone can see only one of them either the first or the second, not both. 
+
+To fulfill these requirement we decided to convert the array of all process, with a linked list. With the use of a linked list xv6 can now, at least theoretically,  manage an infinite number of process alive. We should nevertheless specify that even if the list can now grow indefinitely, the previous constraint of 64 process at the time does not disappear due to how xv6 manages the memory  assigned to each one of them (this does not imply things cannot be changed but a bigger effort would be needed and we would have exited the scope of the project).The \href{[inserire hyperlink al codice]}{list\_proc.c}  manages the insertion and the deletion of the items from and in the list. Note that these file is not generic, but it has been specifically written to manage a list of process. We decide to not go on a generic implementation for a practical and a debugging reason.
+All the functions on this file do the same thing a generic linked list does. However the list\_update\_rcu() and list\_del\_rcu(), that respectively update and delete an element from the list, seems to be have a weird behavior with a pointer to a pointer on the inputs variables. We decided to go with this implementation because we chose to bring outside list\_proc.c the deletion phase. For deletion phase we intend when the grace period has elapsed and an item can be finally deleted and its memory freed. In the sched() we disabled the panic traps since the where all related to locks no more used with the implementation of RCU. We implemented all the function that, according to the literature we found, allow a basic implementation of an RCU scheduler.
+
+
+\section{Project outcomes}
+
+\subsection{Concrete outcomes}
+We managed to have a full working xv6 with a list of process scheduled with RCU. The working OS can be found \href{inserire.link.parent.handling}{here} However this branch contains more a beta version of RCU. This branches allows to work normally with xv6, however it runs with only one CPU. There is no multithreading, it is easier then to check for the grace period. The synhronize\_rcu() does nothing at all. A writer that has modified the list can immediately delete an items since it is sure no readers are actually reading the old version of the modified process. This because readers are not interruptible where a writer is running we are sure the readers have finished their critical section.
+
+The final version we were working at is \href{inserire link alla final version}{this one} but we did not manage to have it working. The kernel boots, but the code breaks. We discuss the reasons in the section 3.4.
+
+
+\subsection{Learning Outcomes}
+
+\begin{itemize}
+    \item (Nicolas) I learned how really an OS works and how the kernel manages the various processes and especially how the memory is managed. Now I have a clear idea what does it mean to call a malloc to allocate  dynamically and the need of freeing it. I have learned to use gdb to debug and how to work in a big project using git, keeping more than one version of the project and to work in group on different feature using branches. I discovered that I probably want to work at system level or at least deepen my studies on the OS field. I am now sure that I prefer low level programming to high one.
+    \item (Salvatore)[aggiungi la tua parte ]
+\end{itemize}
+
+ 
+
+\subsection{Existing knowledge}
+
+We both did the bachelor on a different university. However it helped us, except for a basic operative system course:
+\begin{itemize}
+    \item (Nicolas) a course on C and shell language, where I learned to interact with the OS through a terminal and write basic shell scripts and the basis of the C language. It also helped me to follow a crash course on git, held by some student at the Polimi. I would also say that the course on computer security helped me on the debugging.
+    \item(Salvatore) [aggiungi la tua parte]
+\end{itemize}
+
+It was for both of us the first time we got the opportunity to really modify an os and it was not very easy at the beginning. We found very useful to get confident with xv6 the lab course of the \href{https://courses.cs.washington.edu/courses/csep551/19au/labs/}{washington.edu} that we know you also cited on the lectures. We think it might be interesting for the course to allow all the student to get their hands dirty with a real operative system. So we would suggest that making some practical example with a ‘simple’ os like xv6, as they do in Washington might  help a lot. It was easier for us to understand and remember what was done on class after working with xv6.
+\subsection{Problems encountered}
+
+First thing we realize was that there was not a way to allocate memory dynamically at kernel level. Everything in xv6 at kernel level was allocated at compile time so we had to be very careful when we had to modify memory addresses. We need to dynamically allocate memory to implement the linked list and there was the kalloc(), that allows to allocate a 4KB page, however, it was not practical to use it, since it would have waste to much time. To solve the problem we used the malloc writted by Ritchie that we found here [link al paper]. However we had to make some modification since this malloc was written for user level we had to replace the sbrk() function with a kalloc(). The code written can be found \href{link al codice}.
+
+The other problems are related to RCU itself. In the algorithm it is important to strictly separate readers from writers, since the first can access the shared resource without locking it and the seconds one have to access it once at the time and modify the resources waiting for a grace period before deleting the old version of the resource, ensuring every reader have at least a pointer to either the new or the old version of the resource.
+Our approach was to see as a reader anyone that tried to access the shared list and whenever a process needed to modify the list see it as a writer. The lead us to some problems.
+The first one was related to the sleep() and wakeup(). A wakeup() always follows the sleep(), however the wakeup() is quicker than the sleep, then it happened that even if a sleep() was called, the OS did not change the state of the process in time, that the wakeup() was called and did not find any process on a sleeping state. These is caused by the fact that two threads that are calling a sleep and a wakeup() are both reader, because they at first access the list to find the process, then they become writers when they have to change its state. To solve it we force the  wakeup() to wait the sleep()  to complete, before looking for a process. To force this we needed to implement a lock. We did not like the solution we implement, because the idea of RCU is to not use locks, however we did not find a better one.
+
+The main problem we encountered is the fact that at some point the init process start becoming a zombie process and this is not something we want to happen. It was happening that when exec() was called by init it did not find everything it needed returning -1 causing init to exit and making the os cash with a kerneltrap or with a panic(ilock no type). Debugging with gdb we realized that for some reason at some point the inode of the init code starts to have type=0 and that cause the the kernel to panic. Unfortunately we got stuck in here and we did not find a solution.
+
+\section{Honor Pledge}
+(\textbf{This part cannot be modified and it is mandatory to sign it})
+
+I/We pledge that this work was fully and wholly completed within the criteria
+established for academic integrity by Politecnico di Milano (Code of Ethics and
+Conduct) and represents my/our original production, unless otherwise cited.
+
+I/We also understand that this project, if successfully graded,  will fulfill part B requirement of the
+Advanced Operating System course and that it will be considered valid up until
+the AOS exam of Sept. 2022.
+
+\begin{flushright}
+Group Students' signatures
+\end{flushright}
+\end{document}
