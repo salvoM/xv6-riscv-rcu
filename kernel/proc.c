@@ -900,7 +900,7 @@ sleep(void *chan, struct spinlock *lk)
     printf("[LOG SLEEP] List_update_rcu succeded\n");
     // rcu_read_unlock();
   }
-  release(&p->lock);
+  release(&new_node_ptr->process->lock);
 
   synchronize_rcu(cpuid(),&rcu_writers_lock); // funziona? boh
   freeproc((ptr_node_to_free->process),0); 
@@ -992,8 +992,6 @@ wakeup(void *chan)
 
   for (tmp_node_ptr = process_list ; tmp_node_ptr != 0; tmp_node_ptr = tmp_node_ptr->next){
     //int found=0;
-    printf("[LOG WAKEUP] %d try to acquire lock = %s\n",cpuid(), tmp_node_ptr->process->lock.name);
-    acquire(&tmp_node_ptr->process->lock);
     if((tmp_node_ptr->process) != myproc() && tmp_node_ptr->process->state == SLEEPING && tmp_node_ptr->process->chan == chan){
       //found=1;
       // update dello stato 
@@ -1012,7 +1010,6 @@ wakeup(void *chan)
       //memset(new_node_ptr, 0, sizeof(struct spinlock));// Frreproc per ora è disattivato, mi serve pulire i lock vecchi di un nodo freeato 
       rcu_read_unlock(); //lo sposteri qui
       new_node_ptr->process->state = RUNNABLE;
-      release(&tmp_node_ptr->process->lock);
       
       printf("[LOG LIST_UPDATE:RCU] Called from wakeup\n");
       if(list_update_rcu(&process_list, new_node_ptr, (tmp_node_ptr->process),
@@ -1039,8 +1036,6 @@ wakeup(void *chan)
     }
     else rcu_read_unlock();
     
-    printf("[LOG WAKEUP] %d releasing lock = %s\n",cpuid(), tmp_node_ptr->process->lock.name);
-    release(&tmp_node_ptr->process->lock);
     
     rcu_read_lock();
   }
