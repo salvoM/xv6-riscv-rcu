@@ -64,6 +64,10 @@ void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
 
+// kmalloc.c
+void knfree(void *ap);
+void* knmalloc(uint nbytes);
+
 // log.c
 void            initlog(int, struct superblock*);
 void            log_write(struct buf*);
@@ -105,6 +109,7 @@ void            yield(void);
 int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
+void            print_proc(struct proc* p);
 
 // swtch.S
 void            swtch(struct context*, struct context*);

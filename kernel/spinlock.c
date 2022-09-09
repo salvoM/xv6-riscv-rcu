@@ -22,8 +22,12 @@ void
 acquire(struct spinlock *lk)
 {
   push_off(); // disable interrupts to avoid deadlock.
-  if(holding(lk))
+  if(holding(lk)){
+    printf("lock name: %s\n", lk->name);
     panic("acquire");
+  }
+  __sync_lock_test_and_set(&(mycpu()->idle), 1); // The name can be misleading, this is an atomic swap + fence instruction!!
+  
 
   // On RISC-V, sync_lock_test_and_set turns into an atomic swap:
   //   a5 = 1
@@ -40,6 +44,8 @@ acquire(struct spinlock *lk)
 
   // Record info about lock acquisition for holding() and debugging.
   lk->cpu = mycpu();
+  __sync_lock_test_and_set(&(mycpu()->idle), 0);
+
 }
 
 // Release the lock.

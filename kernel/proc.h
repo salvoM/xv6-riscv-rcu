@@ -24,6 +24,7 @@ struct cpu {
   struct context context;     // swtch() here to enter scheduler().
   int noff;                   // Depth of push_off() nesting.
   int intena;                 // Were interrupts enabled before push_off()?
+  int idle;
 };
 
 extern struct cpu cpus[NCPU];
@@ -33,11 +34,11 @@ extern struct cpu cpus[NCPU];
 // user page table. not specially mapped in the kernel page table.
 // the sscratch register points here.
 // uservec in trampoline.S saves user registers in the trapframe,
-// then initializes registers from the trapframe's
+// then initializes registers  the trapframe's
 // kernel_sp, kernel_hartid, kernel_satp, and jumps to kernel_trap.
 // usertrapret() and userret in trampoline.S set up
 // the trapframe's kernel_*, restore user registers from the
-// trapframe, switch to the user page table, and enter user space.
+// trapframe, switch to the ufromser page table, and enter user space.
 // the trapframe includes callee-saved user registers like s0-s11 because the
 // return-to-user path via usertrapret() doesn't return through
 // the entire kernel call stack.
@@ -91,8 +92,12 @@ struct proc {
   void *chan;                  // If non-zero, sleeping on chan
   int killed;                  // If non-zero, have been killed
   int xstate;                  // Exit status to be returned to parent's wait
+  int nKStack;                 // identifier of the kstack used by the process
   int pid;                     // Process ID
 
+  // Added by us
+  long int uid;
+  long int p_uid;
   // proc_tree_lock must be held when using this:
   struct proc *parent;         // Parent process
 
