@@ -6,6 +6,10 @@ _*
 *.sym
 *.img
 *.json
+*.log
+*.out
+*.aux
+*.toc
 vectors.S
 bootblock
 entryother
