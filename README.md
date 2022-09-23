@@ -1,88 +1,21 @@
-# xv6-riscv-rcu
+# Xv6-riscv-rcu
 Authors: Nicolas Gallo, Salvo Maccarrone
 
-RCU implementation on xv6-riscv
+This is a project developed for the PoliMI course *Advanced Operating Systems* 2021/22.
+
+## Project
+The project is about the implementation of RCU locking for some kernel data in xv6. During the initial phase of the
+project we decided, together with the advisor, that we would be implementing RCU locking on the processes list managed by the xv6’s Kernel.
+
+### What is RCU?
+> Read-copy update (RCU) is a synchronization mechanism that achieves scalability improvements by allowing reads to occur concurrently with updates. In contrast with conventional locking primitives that ensure mutual exclusion among concurrent threads regardless of whether they be readers or updaters, or with reader-writer locks that allow concurrent reads but not in the presence of updates, RCU supports concurrency between a single updater and multiple readers. RCU ensures that reads are coherent by maintaining multiple versions of objects and ensuring that they are not freed up until all pre-existing read-side critical sections complete. RCU defines and uses efficient and scalable mechanisms for publishing and reading new versions of an object, and also for deferring the collection of old versions. These mechanisms distribute the work among read and update paths in such a way as to make read paths extremely fast. 
+>
+-- LWN[1]
+
+### What is Xv6?
+Xv6 is a teaching operating system developed in the summer of 2006 for MIT's Operating System Engineering course.
+It is a modern reimplementation of Sixth Edition Unix.
 
 
-## Build the container 
-
-```sh
-cd /scripts
-sudo make -f container.mk build
-```
-## Connect to the container
-```sh 
-sudo make -f container.mk connect
-#How? black magic?
-```
-
-
-## compile kernel
-```sh
-cd /local && make TOOLPREFIX=/opt/riscv/toolchain/bin/riscv64-unknown-elf-
-```
-
-
-## Start Qemu
-
-```sh
-cd /local && make TOOLPREFIX=/opt/riscv/toolchain/bin/riscv64-unknown-elf- qemu
-```
-
-### Exit from Qemu:
-Ctrl+A, x
-
-## How to add a syscall
-1. Add entry in usys.pl 
-```pl
-entry("syscallname")
-```
-2. Define it in user.h
-3. Add its code number to syscall.h
-4. Add it to syscall.c, both the signature and the entry in the array
-5. Implement it in the appropriate file, e.g. sys_nfree() is implemented in kalloc.c
-
-## How to debug
-for debugging
-1. In a window start a container 
-    ```sh
-    cd scripts/ 
-    sudo make -f container.mk connect
-    ```
-    And run qemu-gdb
-    ```sh
-    cd /local && make TOOLPREFIX=/opt/riscv/toolchain/bin/riscv64-unknown-elf- qemu-gdb
-    ```
-2. In another window connect to the same instance of docker
-get the name of the session
-    ```sh
-    sudo docker ps
-    ```
-3. Connect to interactively to it using:
-    ```sh
-    sudo docker exec -ti <instance_name> bash
-    ```
-    Inside the container run gdb with:
-    ```sh
-    /opt/riscv/toolchain/bin/riscv64-unknown-elf-gdb /local/kernel/kernel
-    ```      
-    
-    Inside gdb run this command
-    ```sh
-    (gdb) target remote localhost:25000
-    ```
-
-## How to execute with only 1 CPU
-In the main folder of xv6 edit the Makefile:
- 
-```make
-ifndef CPUS
-CPUS := 3
-endif
-```
-to the intuitive 
-```make
-ifndef CPUS
-CPUS := 1
-endif
-```
+## References
+1. https://lwn.net/Articles/262464/

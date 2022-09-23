@@ -1,1 +1,0 @@
-- Ottimizzare la list_update con quel trick di list_entry
